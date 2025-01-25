@@ -61,6 +61,10 @@ set(headers
     src/sceneStructs.h
     src/preview.h
     src/utilities.h
+    src/macro.h
+    src/sampler.h
+    src/material.h
+    src/bvh.h
 )
 
 set(sources

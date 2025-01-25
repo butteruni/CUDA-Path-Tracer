@@ -4,13 +4,14 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
-
+#include "macro.h"
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
 enum GeomType
 {
     SPHERE,
-    CUBE
+	CUBE,
+    MESH,
 };
 
 struct Ray
@@ -39,6 +40,7 @@ struct Material
         float exponent;
         glm::vec3 color;
     } specular;
+    float roughness;
     float hasReflective;
     float hasRefractive;
     float indexOfRefraction;
