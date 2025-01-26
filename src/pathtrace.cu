@@ -18,7 +18,7 @@
 #include "sampler.h"
 #include "macro.h"
 #define ERRORCHECK 1
-
+#define RESUFFLE_BY_MATERIAL 1
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char* msg, const char* file, int line)
@@ -400,8 +400,15 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 struct IsPathRunning {
-    GPU bool operator()(const PathSegment& path) const {
+    CPUGPU bool operator()(const PathSegment& path) const {
         return path.remainingBounces != 0;
+    }
+};
+struct sortByMaterial {
+    CPUGPU bool operator()(
+        const ShadeableIntersection& a, 
+        const ShadeableIntersection& b) {
+        return a.materialId < b.materialId;
     }
 };
 /**
@@ -493,6 +500,21 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
 
+        // reshuffle material
+        if (RESUFFLE_BY_MATERIAL) {
+            thrust::sort_by_key(
+                thrust::device_pointer_cast(dev_intersections),
+                thrust::device_pointer_cast(dev_intersections + num_paths),
+                thrust::make_zip_iterator(
+                    thrust::make_tuple(
+                        thrust::device_pointer_cast(dev_paths),
+                        thrust::device_pointer_cast(dev_intersections)
+                    )
+                ),
+                sortByMaterial()
+            
+            );
+        }
         shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
             iter,
             num_paths,
