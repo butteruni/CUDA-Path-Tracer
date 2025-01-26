@@ -366,19 +366,18 @@ __global__ void shadeMaterial(
             }else if (material.hasReflective > 0.f) {
                 glm::vec3 reflection_dir = glm::reflect(segment.ray.direction, intersection.surfaceNormal);
                 segment.ray.direction = glm::normalize(reflection_dir);
-                //float roughness = material.roughness;
-                //if (material.roughness > 0.0f) {
-                //    glm::vec3 random_dir = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
-                //    random_dir = glm::normalize(glm::mix(reflection_dir, random_dir, roughness));
-                //    segment.ray.direction = random_dir;
-                //}
+                float roughness = material.roughness;
+                if (material.roughness > 0.0f) {
+                    glm::vec3 random_dir = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
+                    random_dir = glm::normalize(glm::mix(reflection_dir, random_dir, roughness));
+                    segment.ray.direction = random_dir;
+                }
                 segment.color *= material.specular.color;
             }
             else {
 				glm::vec3 new_dir = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
-                float cos_theta = glm::dot(new_dir, intersection.surfaceNormal);
                 segment.ray.direction = glm::normalize(new_dir);
-                segment.color *= materialColor * 2.f * cos_theta;
+                segment.color *= materialColor;
 
             }
         }
@@ -387,7 +386,7 @@ __global__ void shadeMaterial(
         pathSegments[idx].color = glm::vec3(0.0f);
 		pathSegments[idx].remainingBounces = 0;
     }
-
+    segment.ray.origin += EPSILON * segment.ray.direction;
 }
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
