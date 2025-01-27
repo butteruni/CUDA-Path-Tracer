@@ -23,6 +23,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(WIN32)
+    # Set up include and lib paths
+    set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
+endif(WIN32)
 find_package(OpenGL REQUIRED)
 
 if(UNIX)
@@ -45,7 +49,6 @@ else(UNIX)
     include_directories(${GLEW_INCLUDE_DIR} ${GLFW_INCLUDE_DIR})
     set(LIBRARIES ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
 endif(UNIX)
-
 set(GLM_ROOT_DIR "${CMAKE_SOURCE_DIR}/external")
 find_package(GLM REQUIRED)
 include_directories(${GLM_INCLUDE_DIRS})
@@ -78,8 +81,9 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+    src/tiny_obj_loader.cpp
+    src/tiny_gltf.cpp
 )
-
 set(imgui_headers
     src/ImGui/imconfig.h
     src/ImGui/imgui.h
@@ -115,7 +119,11 @@ source_group("ImGui\\Sources" FILES ${imgui_sources})
 #add_subdirectory(src/ImGui)
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
 
-add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers} ${imgui_sources} ${imgui_headers})
+add_executable(${CMAKE_PROJECT_NAME} 
+    ${sources} ${headers} 
+    ${imgui_sources} ${imgui_headers}
+
+)
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 if(CMAKE_VERSION VERSION_LESS "3.23.0")
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES OFF)
@@ -126,7 +134,6 @@ else()
 endif()
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
-    cudadevrt
     #stream_compaction  # TODO: uncomment if using your stream compaction
     )
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Debug,RelWithDebInfo>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx>")
