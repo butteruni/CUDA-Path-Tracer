@@ -18,3 +18,6 @@ public:
     void savePNG(const std::string &baseFilename);
     void saveHDR(const std::string &baseFilename);
 };
+class GPUImage {
+
+};

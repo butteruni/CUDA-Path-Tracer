@@ -18,6 +18,9 @@ struct Ray
 {
     glm::vec3 origin;
     glm::vec3 direction;
+    CPUGPU glm::vec3 at(float t) {
+        return origin + t * direction;
+    }
 };
 
 struct Geom
@@ -32,20 +35,7 @@ struct Geom
     glm::mat4 invTranspose;
 };
 
-struct Material
-{
-    glm::vec3 color;
-    struct
-    {
-        float exponent;
-        glm::vec3 color;
-    } specular;
-    float roughness;
-    float hasReflective;
-    float hasRefractive;
-    float indexOfRefraction;
-    float emittance;
-};
+
 
 struct Camera
 {
@@ -82,6 +72,8 @@ struct PathSegment
 struct ShadeableIntersection
 {
   float t;
+  glm::vec3 point;
+  glm::vec3 dir;
   glm::vec3 surfaceNormal;
   int materialId;
 };

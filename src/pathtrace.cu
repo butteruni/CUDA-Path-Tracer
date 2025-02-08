@@ -13,6 +13,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
 #include "utilities.h"
+#include "material.h"
 #include "intersections.h"
 #include "interactions.h"
 #include "sampler.h"
@@ -234,6 +235,8 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].dir = -pathSegment.ray.direction;
+			intersections[path_index].point = intersect_point;
         }
     }
 }
@@ -339,8 +342,7 @@ __global__ void shadeMaterial(
 
 				float r0 = (eta_i - eta_t) / (eta_i + eta_t);
 				r0 *= r0;
-				float reflection = r0 + (1 - r0) * pow(1 - cos_theta, 5);
-                reflection = glm::clamp(reflection, 0.f, 1.f);
+				float reflection = fresnelSchlick(cos_theta, r0);
 				
                 float prob = u01(rng);
                 if (prob < reflection) {
@@ -387,6 +389,49 @@ __global__ void shadeMaterial(
 		pathSegments[idx].remainingBounces = 0;
     }
     segment.ray.origin += EPSILON * segment.ray.direction;
+}
+
+__global__ void pathIntegrator(
+    int iter,
+    int num_paths,
+    ShadeableIntersection* shadeableIntersections,
+    PathSegment* pathSegments,
+    Material* materials) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_paths) {
+        return;
+    }
+    ShadeableIntersection intersection = shadeableIntersections[idx];
+    PathSegment& segment = pathSegments[idx];
+    if (intersection.t > 0.f) {
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+	    Material material = materials[intersection.materialId];
+        segment.ray.origin = intersection.point;
+        if (material.type == MaterialType::Light) {
+            segment.color *= (material.color * material.emittance);
+		    segment.remainingBounces = 0;
+	    }
+        else {
+            BSDFSample sampler;
+            material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
+            if (sampler.pdf < 0) {
+                segment.remainingBounces = 0;
+            }
+            else {
+                bool isDelta = sampler.flags & BxDFFlags::Specular;
+                segment.color *= sampler.bsdf / sampler.pdf;
+                if(!isDelta)
+				    segment.color *= glm::dot(sampler.wi, intersection.surfaceNormal);
+                segment.ray.direction = glm::normalize(sampler.wi);
+			    segment.remainingBounces--;
+            }
+        }
+    }
+    else {
+		segment.color = glm::vec3(0.0f);
+		segment.remainingBounces = 0;
+    }
+	segment.ray.origin += EPSILON * segment.ray.direction;
 }
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
@@ -515,13 +560,20 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             
             );
         }
-        shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
-            iter,
-            num_paths,
-            dev_intersections,
-            dev_paths,
-            dev_materials
-        );
+        //shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
+        //    iter,
+        //    num_paths,
+        //    dev_intersections,
+        //    dev_paths,
+        //    dev_materials
+        //);
+		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+			iter,
+			num_paths,
+			dev_intersections,
+			dev_paths,
+			dev_materials
+			);
         checkCUDAError("shading");
         cudaDeviceSynchronize();
         PathSegment* new_end = thrust::stable_partition(

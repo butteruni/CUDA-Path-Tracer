@@ -7,7 +7,7 @@
 #include "glm/glm.hpp"
 #include "utilities.h"
 #include "sceneStructs.h"
-
+#include "material.h"
 using namespace std;
 
 class Scene
@@ -22,4 +22,7 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
+};
+class GPUScene {
+
 };

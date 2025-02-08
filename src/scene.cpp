@@ -40,19 +40,23 @@ void Scene::loadFromJSON(const std::string& jsonName)
         {
             const auto& col = p["RGB"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+			newMaterial.type = Lambertian;
         }
         else if (p["TYPE"] == "Emitting")
         {
             const auto& col = p["RGB"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
             newMaterial.emittance = p["EMITTANCE"];
+			newMaterial.type = Light;
         }
         else if (p["TYPE"] == "Specular")
         {
             const auto& col = p["RGB"];
             newMaterial.hasReflective = 1.0f;
 			newMaterial.roughness = p["ROUGHNESS"];
-            newMaterial.specular.color = glm::vec3(col[0], col[1], col[2]);
+			newMaterial.metallic = p["METALLIC"];
+            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+			newMaterial.type = Conductor;
 		}
 		else if (p["TYPE"] == "Refractive")
 		{
@@ -61,6 +65,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
 			const auto& col = p["RGB"];
 			newMaterial.color = glm::vec3(col[0], col[1], col[2]);
             newMaterial.specular.color = glm::vec3(1.0f);
+			newMaterial.type = Dielectric;
 		}
         MatNameToID[name] = materials.size();
         materials.emplace_back(newMaterial);
