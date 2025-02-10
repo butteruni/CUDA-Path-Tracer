@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <unordered_map>
+#include "tiny_obj_loader.h"
 #include "json.hpp"
 #include "scene.h"
 using json = nlohmann::json;
@@ -79,10 +80,15 @@ void Scene::loadFromJSON(const std::string& jsonName)
         {
             newGeom.type = CUBE;
         }
-        else
+		else if (type == "sphere")
         {
             newGeom.type = SPHERE;
-        }
+		}
+		else if (type == "mesh")
+		{
+			newGeom.type = MESH;
+			loadMesh(p["MESH"], newGeom);
+		}
         newGeom.materialid = MatNameToID[p["MATERIAL"]];
         const auto& trans = p["TRANS"];
         const auto& rotat = p["ROTAT"];
@@ -129,4 +135,61 @@ void Scene::loadFromJSON(const std::string& jsonName)
     int arraylen = camera.resolution.x * camera.resolution.y;
     state.image.resize(arraylen);
     std::fill(state.image.begin(), state.image.end(), glm::vec3());
+}
+void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
+{
+    dst_data.meshData = new MeshData();
+	std::cerr << "Loading mesh from " << meshName << std::endl;
+	if (meshName.substr(meshName.find_last_of('.')) == ".obj")
+	{
+        loadMeshFromObj(meshName, dst_data.meshData);
+    }
+    else {
+		cout << "Couldn't read mesh from " << meshName << endl;
+		exit(-1);
+    }
+}
+void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::string warn, err;
+	if (!tinyobj::LoadObj(&attrib, &shapes, nullptr, &warn, &err, meshName.c_str()))
+	{
+		std::cerr << warn << err << std::endl;
+		exit(-1);
+	}
+	bool hasNormals = attrib.normals.size() > 0;
+	bool hasUVs = attrib.texcoords.size() > 0;
+	for (const auto& shape : shapes)
+	{
+		for (const auto& index : shape.mesh.indices)
+		{
+			glm::vec3 vertex = glm::vec3(attrib.vertices[3 * index.vertex_index + 0],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]);
+            
+			glm::vec3 normal = glm::vec3(0);
+            if (hasNormals) {
+			     normal = glm::vec3(attrib.normals[3 * index.normal_index + 0],
+				    attrib.normals[3 * index.normal_index + 1],
+				    attrib.normals[3 * index.normal_index + 2]);
+            }
+            else {
+				normal = glm::vec3(0, 0, 0);
+            }
+			glm::vec2 uv = glm::vec2(0);
+			if (hasUVs) {
+				uv = glm::vec2(attrib.texcoords[2 * index.texcoord_index + 0],
+					attrib.texcoords[2 * index.texcoord_index + 1]);
+            }
+            else {
+				uv = glm::vec2(0, 0);
+            }
+			dst_data->vertices.push_back(vertex);
+			dst_data->normals.push_back(normal);
+			dst_data->uvs.push_back(uv);
+		}
+	}
+	std::cout << "Loaded mesh from " << meshName << std::endl;
+    return;
 }

@@ -111,3 +111,66 @@ __host__ __device__ float sphereIntersectionTest(
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+CPUGPU float triangleIntersectionTest(
+    const glm::vec3& v0,
+    const glm::vec3& v1,
+    const glm::vec3& v2,
+    Ray r,
+    glm::vec3& bary
+) {
+	glm::vec3 e1 = v1 - v0;
+	glm::vec3 e2 = v2 - v0;
+	glm::vec3 s = r.origin - v0;
+	glm::vec3 dir = r.direction;
+	float denom = glm::dot(glm::cross(e1, dir), e2);
+    if (abs(denom) < EPSILON) return -1;
+	float u = -glm::dot(glm::cross(s, e2), dir) / denom;
+	if (u < 0 || u > 1) return -1;
+    float v = glm::dot(glm::cross(e1, s), dir) / denom;
+	if (v < 0 || u + v > 1) return -1;
+	float t = -glm::dot(glm::cross(s, e2), e1) / denom;
+	bary = glm::vec3(1 - u - v, u, v);
+    return t;
+}
+
+CPUGPU float meshIntersectionTest(
+    Geom mesh,
+    Ray r,
+    glm::vec3& intersectionPoint,
+    glm::vec3& normal,
+    glm::vec2& uv,
+    bool& outside) {
+	float min_t = FLT_MAX;
+    int triIndex = -1;
+    glm::vec3 min_bary;
+
+	//int num_tri = mesh.meshData->vertexCount;
+ //   for (int i = 0; i < num_tri; ++i) {
+	//	glm::vec3 v0 = mesh.meshData->vertices[i * 3];
+	//	glm::vec3 v1 = mesh.meshData->vertices[i * 3 + 1];
+	//	glm::vec3 v2 = mesh.meshData->vertices[i * 3 + 2];
+	//	glm::vec3 bary;
+	//	float t = triangleIntersectionTest(v0, v1, v2, r, bary);
+ //       if (t > 0 && t < min_t) {
+	//		min_t = t;
+	//		triIndex = i;
+	//		min_bary = bary;
+ //       }
+ //   }
+ //   if (triIndex == -1) {
+	//	outside = false;
+	//	return -1;
+ //   }
+	//glm::vec3 n0 = mesh.meshData->vertices[triIndex * 3];
+	//glm::vec3 n1 = mesh.meshData->vertices[triIndex * 3 + 1];
+	//glm::vec3 n2 = mesh.meshData->vertices[triIndex * 3 + 2];
+	//glm::vec2 uv0 = mesh.meshData->uvs[triIndex * 3];
+	//glm::vec2 uv1 = mesh.meshData->uvs[triIndex * 3 + 1];
+	//glm::vec2 uv2 = mesh.meshData->uvs[triIndex * 3 + 2];
+	//intersectionPoint = getPointOnRay(r, min_t);
+	//normal = glm::normalize(n0 * min_bary.x + n1 * min_bary.y + n2 * min_bary.z);
+	//uv = uv0 * min_bary.x + uv1 * min_bary.y + uv2 * min_bary.z;
+	//outside = true;
+	return min_t;
+}

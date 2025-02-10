@@ -23,20 +23,6 @@ struct Ray
     }
 };
 
-struct Geom
-{
-    enum GeomType type;
-    int materialid;
-    glm::vec3 translation;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-    glm::mat4 transform;
-    glm::mat4 inverseTransform;
-    glm::mat4 invTranspose;
-};
-
-
-
 struct Camera
 {
     glm::ivec2 resolution;
