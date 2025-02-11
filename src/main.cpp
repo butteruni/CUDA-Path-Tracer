@@ -80,8 +80,8 @@ int main(int argc, char** argv)
     InitDataContainer(guiData);
 
     // GLFW main loop
-    mainLoop();
 
+    mainLoop();
     return 0;
 }
 
@@ -140,6 +140,7 @@ void runCuda()
     if (iteration == 0)
     {
         pathtraceFree();
+        scene->toDevice();
         pathtraceInit(scene);
     }
 
@@ -160,6 +161,7 @@ void runCuda()
     {
         saveImage();
         pathtraceFree();
+        scene->clearScene();
         cudaDeviceReset();
         exit(EXIT_SUCCESS);
     }

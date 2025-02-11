@@ -108,7 +108,9 @@ GPU inline glm::vec2 sample2D(thrust::default_random_engine& rng) {
 GPU inline glm::vec3 sample3D(thrust::default_random_engine& rng) {
 	return glm::vec3(sample1D(rng), sample1D(rng), sample1D(rng));
 }
-
+GPU inline glm::vec4 sample4D(thrust::default_random_engine& rng) {
+	return glm::vec4(sample3D(rng), sample1D(rng));
+}
 template <typename T>
 struct DF
 {

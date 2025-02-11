@@ -18,39 +18,7 @@
 #include "interactions.h"
 #include "sampler.h"
 #include "macro.h"
-#define ERRORCHECK 1
-#define RESUFFLE_BY_MATERIAL 1
-#define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
-void checkCUDAErrorFn(const char* msg, const char* file, int line)
-{
-#if ERRORCHECK
-    cudaDeviceSynchronize();
-    cudaError_t err = cudaGetLastError();
-    if (cudaSuccess == err)
-    {
-        return;
-    }
 
-    fprintf(stderr, "CUDA error");
-    if (file)
-    {
-        fprintf(stderr, " (%s:%d)", file, line);
-    }
-    fprintf(stderr, ": %s: %s\n", msg, cudaGetErrorString(err));
-#ifdef _WIN32
-    getchar();
-#endif // _WIN32
-    exit(EXIT_FAILURE);
-#endif // ERRORCHECK
-}
-
-__host__ __device__
-thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
-{
-    int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
-    return thrust::default_random_engine(h);
-}
 
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution, int iter, glm::vec3* image)
@@ -143,6 +111,32 @@ void pathtraceFree()
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
+GPU Ray physical_light(const Camera& cam, int x, int y, thrust::default_random_engine &rng) {
+    Ray ray;
+    glm::vec4 r = sample4D(rng);
+    float aspect = float(cam.resolution.x) / cam.resolution.y;
+    float tanFovY = glm::tan(glm::radians(cam.fov.y));
+    glm::vec2 pixelSize = 1.f / glm::vec2(cam.resolution);
+    glm::vec2 scr = glm::vec2(x, y) * pixelSize;
+    glm::vec2 ruv = scr + pixelSize * glm::vec2(r.x, r.y);
+    ruv = 1.f - ruv * 2.f;
+
+    glm::vec3 pLens = glm::vec3(squareToDiskConcentric(glm::vec2(r.z, r.w)) * cam.lensRadius, 0.f);
+    glm::vec3 pFocusPlane = glm::vec3(ruv * glm::vec2(aspect, 1.f) * tanFovY, 1.f) * cam.focalDist;
+    glm::vec3 dir = pFocusPlane - pLens;
+    ray.direction = glm::normalize(glm::mat3(cam.right, cam.up, cam.view) * dir);
+    ray.origin = cam.position + cam.right * pLens.x + cam.up * pLens.y;
+    return ray;
+}
+GPU  glm::vec3 random_light_dir(const Camera& cam, int x, int y, thrust::default_random_engine & rng) {
+    thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
+    float jitterX = u01(rng);
+    float jitterY = u01(rng);
+    return glm::normalize(cam.view
+        - cam.right * cam.pixelLength.x * ((float)x + jitterX - (float)cam.resolution.x * 0.5f)
+        - cam.up * cam.pixelLength.y * ((float)y + jitterY - (float)cam.resolution.y * 0.5f)
+    );
+}
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -152,19 +146,14 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         int index = x + (y * cam.resolution.x);
         PathSegment& segment = pathSegments[index];
 
-        segment.ray.origin = cam.position;
-        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
-		thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
-		float jitterX = u01(rng);
-		float jitterY = u01(rng);
-        segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x + jitterX - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y + jitterY- (float)cam.resolution.y * 0.5f)
-        );
-
+        
+        //segment.ray.direction = random_light_dir(cam, x, y, rng);
+        segment.ray = physical_light(cam, x, y, rng);
+        //segment.ray.origin = cam.position;
+        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -240,7 +229,28 @@ __global__ void computeIntersections(
         }
     }
 }
-
+__global__ void computeIntersectionsScene(
+    int depth,
+    int num_paths,
+    PathSegment* pathSegments,
+    GPUScene* dev_scene,
+    ShadeableIntersection* intersections)
+{
+    int path_index = blockIdx.x * blockDim.x + threadIdx.x;
+    
+   
+    if (path_index >= num_paths) {
+        return;
+    }
+    PathSegment pathSegment = pathSegments[path_index];
+    ShadeableIntersection isect;
+    dev_scene->intersectTest(pathSegment.ray, isect);
+    
+    if (isect.primitiveId != -1) {
+        isect.dir = -pathSegment.ray.direction;
+    }
+    intersections[path_index] = isect;
+}
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -433,6 +443,8 @@ __global__ void pathIntegrator(
     }
 	segment.ray.origin += EPSILON * segment.ray.direction;
 }
+
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
 {
@@ -532,6 +544,13 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             hst_scene->geoms.size(),
             dev_intersections
         );
+   //     computeIntersectionsScene << <numblocksPathSegmentTracing, blockSize1d >> > (
+   //         depth,
+   //         num_paths,
+   //         dev_paths,
+			//hst_scene->devScene,
+			//dev_intersections
+			//);
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
         depth++;

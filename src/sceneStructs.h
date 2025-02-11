@@ -13,7 +13,24 @@ enum GeomType
 	CUBE,
     MESH,
 };
+struct MeshData {
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> uvs;
+};
 
+struct Geom
+{
+    enum GeomType type;
+    int materialid;
+    MeshData* meshData;
+    glm::vec3 translation;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    glm::mat4 transform;
+    glm::mat4 inverseTransform;
+    glm::mat4 invTranspose;
+};
 struct Ray
 {
     glm::vec3 origin;
@@ -33,6 +50,9 @@ struct Camera
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+    float lensRadius;
+    float focalDist;
+    float tanFovY;
 };
 
 struct RenderState
@@ -61,5 +81,16 @@ struct ShadeableIntersection
   glm::vec3 point;
   glm::vec3 dir;
   glm::vec3 surfaceNormal;
+  glm::vec2 uv;
+  int primitiveId = -1;
   int materialId;
+  GPU void operator = (const ShadeableIntersection& rhs) {
+	  t = rhs.t;
+	  point = rhs.point;
+	  dir = rhs.dir;
+	  surfaceNormal = rhs.surfaceNormal;
+	  uv = rhs.uv;
+	  primitiveId = rhs.primitiveId;
+	  materialId = rhs.materialId;
+  }
 };

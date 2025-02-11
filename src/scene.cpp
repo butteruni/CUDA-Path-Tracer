@@ -112,19 +112,20 @@ void Scene::loadFromJSON(const std::string& jsonName)
     state.iterations = cameraData["ITERATIONS"];
     state.traceDepth = cameraData["DEPTH"];
     state.imageName = cameraData["FILE"];
+    camera.focalDist = cameraData["FOCALDIST"];
+    camera.lensRadius = cameraData["LENSRADIUS"];
     const auto& pos = cameraData["EYE"];
     const auto& lookat = cameraData["LOOKAT"];
     const auto& up = cameraData["UP"];
     camera.position = glm::vec3(pos[0], pos[1], pos[2]);
     camera.lookAt = glm::vec3(lookat[0], lookat[1], lookat[2]);
     camera.up = glm::vec3(up[0], up[1], up[2]);
-
     //calculate fov based on resolution
     float yscaled = tan(fovy * (PI / 180));
     float xscaled = (yscaled * camera.resolution.x) / camera.resolution.y;
     float fovx = (atan(xscaled) * 180) / PI;
     camera.fov = glm::vec2(fovx, fovy);
-
+    camera.tanFovY = glm::tan(glm::radians(fovy * 0.5f));
     camera.right = glm::normalize(glm::cross(camera.view, camera.up));
     camera.pixelLength = glm::vec2(2 * xscaled / (float)camera.resolution.x,
         2 * yscaled / (float)camera.resolution.y);
@@ -136,6 +137,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
     state.image.resize(arraylen);
     std::fill(state.image.begin(), state.image.end(), glm::vec3());
 }
+
 void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 {
     dst_data.meshData = new MeshData();
@@ -149,6 +151,7 @@ void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 		exit(-1);
     }
 }
+
 void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -192,4 +195,60 @@ void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
 	}
 	std::cout << "Loaded mesh from " << meshName << std::endl;
     return;
+}
+
+void Scene::toDevice()
+{
+    for (auto& geom : geoms) {
+        if (geom.type != MESH)
+            continue;
+        for (size_t i = 0; i < geom.meshData->vertices.size(); i++) {
+            meshData.vertices.push_back(glm::vec3(geom.transform * glm::vec4(geom.meshData->vertices[i], 1.0f)));
+            meshData.normals.push_back(glm::vec3(geom.invTranspose * glm::vec4(geom.meshData->normals[i], 0.0f)));
+            meshData.uvs.push_back(geom.meshData->uvs[i]);
+            if (i % 3 == 0) {
+                materialIDs.push_back(geom.materialid);
+            }
+            std::cerr << meshData.vertices.back().x << '\n';
+        }
+    }
+    hstScene.loadFromScene(*this);
+    cudaMalloc(&devScene, sizeof(GPUScene));
+    cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
+}
+
+void Scene::clearScene() {
+    hstScene.clear();
+    safeCudaFree(devScene);
+}
+
+void GPUScene::loadFromScene(const Scene& scene) {
+    cudaDeviceSynchronize();
+    verticesSize = scene.meshData.vertices.size();
+
+    cudaMalloc(&vertices, getVectorByteSize(scene.meshData.vertices));
+    cudaMemcpy(vertices, scene.meshData.vertices.data(), getVectorByteSize(scene.meshData.vertices), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&normals, getVectorByteSize(scene.meshData.normals));
+    cudaMemcpy(normals, scene.meshData.normals.data(), getVectorByteSize(scene.meshData.normals), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&uvs, getVectorByteSize(scene.meshData.uvs));
+    cudaMemcpy(uvs, scene.meshData.uvs.data(), getVectorByteSize(scene.meshData.uvs), cudaMemcpyHostToDevice);
+    checkCUDAError("load vertices");
+
+
+    cudaMalloc(&materials, getVectorByteSize(scene.materials));
+    cudaMemcpy(materials, scene.materials.data(), getVectorByteSize(scene.materials), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&materialIDs, getVectorByteSize(scene.materialIDs));
+    cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
+    checkCUDAError("load material");
+}
+
+void GPUScene::clear() {
+    safeCudaFree(vertices);
+    safeCudaFree(normals);
+    safeCudaFree(uvs);
+    safeCudaFree(materials);
+    safeCudaFree(materialIDs);
 }

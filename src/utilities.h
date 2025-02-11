@@ -8,8 +8,57 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thrust/random.h>
+#include <cstdio>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include "macro.h"
+#define ERRORCHECK 1
+#define RESUFFLE_BY_MATERIAL 0
+#define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
+/**
+ * Handy-dandy hash function that provides seeds for random number generation.
+ */
+__host__ __device__ inline unsigned int utilhash(unsigned int a)
+{
+    a = (a + 0x7ed55d16) + (a << 12);
+    a = (a ^ 0xc761c23c) ^ (a >> 19);
+    a = (a + 0x165667b1) + (a << 5);
+    a = (a + 0xd3a2646c) ^ (a << 9);
+    a = (a + 0xfd7046c5) + (a << 3);
+    a = (a ^ 0xb55a4f09) ^ (a >> 16);
+    return a;
+}
+void inline checkCUDAErrorFn(const char* msg, const char* file, int line)
+{
+#if ERRORCHECK
+    cudaDeviceSynchronize();
+    cudaError_t err = cudaGetLastError();
+    if (cudaSuccess == err)
+    {
+        return;
+    }
 
+    fprintf(stderr, "CUDA error");
+    if (file)
+    {
+        fprintf(stderr, " (%s:%d)", file, line);
+    }
+    fprintf(stderr, ": %s: %s\n", msg, cudaGetErrorString(err));
+#ifdef _WIN32
+    getchar();
+#endif // _WIN32
+    exit(EXIT_FAILURE);
+#endif // ERRORCHECK
+}
 
+__host__ __device__ inline
+thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
+{
+    int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
+    return thrust::default_random_engine(h);
+}
 
 class GuiDataContainer
 {
@@ -28,4 +77,29 @@ namespace utilityCore
     extern glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
     extern std::string convertIntToString(int number);
     extern std::istream& safeGetline(std::istream& is, std::string& t); //Thanks to http://stackoverflow.com/a/6089413
+}
+template <typename T>
+inline size_t getVectorByteSize(const std::vector<T>& vec)
+{
+    return vec.size() * sizeof(T);
+}
+
+template <typename T>
+void inline safeFree(T*& ptr)
+{
+    if (ptr != nullptr)
+    {
+        free(ptr);
+        ptr = nullptr;
+    }
+}
+
+template <typename T>
+void inline safeCudaFree(T*& ptr)
+{
+    if (ptr != nullptr)
+    {
+        cudaFree(ptr);
+        ptr = nullptr;
+    }
 }

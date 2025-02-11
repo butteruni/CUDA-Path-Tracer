@@ -6,19 +6,7 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
-/**
- * Handy-dandy hash function that provides seeds for random number generation.
- */
-__host__ __device__ inline unsigned int utilhash(unsigned int a)
-{
-    a = (a + 0x7ed55d16) + (a << 12);
-    a = (a ^ 0xc761c23c) ^ (a >> 19);
-    a = (a + 0x165667b1) + (a << 5);
-    a = (a + 0xd3a2646c) ^ (a << 9);
-    a = (a + 0xfd7046c5) + (a << 3);
-    a = (a ^ 0xb55a4f09) ^ (a >> 16);
-    return a;
-}
+
 
 // CHECKITOUT
 /**
@@ -71,9 +59,11 @@ __host__ __device__ float sphereIntersectionTest(
     glm::vec3& intersectionPoint,
     glm::vec3& normal,
     bool& outside);
+
 CPUGPU float triangleIntersectionTest(
     const glm::vec3& v0,
     const glm::vec3& v1,
     const glm::vec3& v2,
     Ray r,
-    glm::vec3& bary);
+    glm::vec3& bary
+);
