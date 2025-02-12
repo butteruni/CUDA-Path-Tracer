@@ -103,3 +103,15 @@ void inline safeCudaFree(T*& ptr)
         ptr = nullptr;
     }
 }
+
+CPUGPU inline glm::vec3 ACES(glm::vec3& color) {
+	const float a = 2.51f;
+	const float b = 0.03f;
+	const float c = 2.43f;
+	const float d = 0.59f;
+	const float e = 0.14f;
+	return glm::clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.f, 1.f);
+}
+CPUGPU inline glm::vec3 gammaCorrect(glm::vec3& color) {
+	return glm::pow(color, glm::vec3(1.f / 2.2f));
+}

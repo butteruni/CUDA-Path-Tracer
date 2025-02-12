@@ -97,8 +97,6 @@ struct Material
         glm::vec3 color;
     } specular;
     float roughness;
-    float hasReflective;
-    float hasRefractive;
     float indexOfRefraction;
     float emittance;
 	float metallic;
@@ -109,8 +107,7 @@ struct Material
 		return fmax(0.f, glm::dot(n, wi)) * INV_PI;
 	}
 	CPUGPU void DiffuseSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
-		glm::vec2 square = glm::vec2(r.x, r.y);
-		sample.wi = squareToHemiSphereCos(n, square);
+		sample.wi = squareToHemiSphereCos(n, glm::vec2(r.x, r.y));
 		sample.bsdf = DiffuseBSDF();
 		sample.pdf = DiffusePdf(n, sample.wi);
 		sample.flags = BxDFFlags::DiffuseReflection;
@@ -133,9 +130,10 @@ struct Material
 	}
 	CPUGPU float ConductorPdf(const glm::vec3 &n, const glm::vec3 &wo, const glm::vec3& wi) {
 		glm::vec3 h = glm::normalize(wi + wo);
-		return glm::mix(DiffusePdf(n, wi), 
-						GGX_Pdf(n, h, wo, roughness * roughness) / (4.f * glm::dot(h, wo)),
+		return glm::mix(DiffusePdf(n, wi),
+						GGX_Pdf(n, h, wo, roughness * roughness) / glm::max(EPSILON, (4.f * glm::dot(h, wo))),
 						1.f / (2.f - metallic));
+
 
 	}
 	CPUGPU void ConductorSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
@@ -202,5 +200,13 @@ struct Material
 			DielectricSampleBSDF(n, wo, r, sample);
 			break;
 		}
+	}
+	CPUGPU void operator =(const Material &rhs) {
+		type = rhs.type;
+		color= rhs.color;
+		specular = rhs.specular;
+		roughness = rhs.roughness;
+		indexOfRefraction = rhs.indexOfRefraction;
+		metallic = rhs.metallic;
 	}
 };

@@ -50,7 +50,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
             newMaterial.emittance = p["EMITTANCE"];
 			newMaterial.type = Light;
         }
-        else if (p["TYPE"] == "Specular")
+        else if (p["TYPE"] == "Conductor")
         {
             const auto& col = p["RGB"];
 			newMaterial.roughness = p["ROUGHNESS"];
@@ -58,7 +58,7 @@ void Scene::loadFromJSON(const std::string& jsonName)
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
 			newMaterial.type = Conductor;
 		}
-		else if (p["TYPE"] == "Refractive")
+		else if (p["TYPE"] == "Dielectric")
 		{
 			newMaterial.indexOfRefraction = p["IOR"];
 			const auto& col = p["RGB"];

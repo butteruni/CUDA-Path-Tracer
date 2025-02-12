@@ -49,14 +49,6 @@ CPUGPU static glm::vec2 squareToDiskConcentric(const glm::vec2& sample)
 	return glm::vec2(r * glm::cos(theta), r * glm::sin(theta));
 }
 
-
-CPUGPU static glm::vec3 squareToHemiSphereUniform(const glm::vec2& sample)
-{
-	float z = sample.x;
-	float r = sqrtf(fmax(0.0f, 1.0f - z * z));
-	float phi = TWO_PI * sample.y;
-	return glm::vec3(r * cos(phi), r * sin(phi), z);
-}
 CPUGPU static glm::mat3 localRefMatrix(glm::vec3 n) {
 	glm::vec3 t = (glm::abs(n.y) > 0.9999f) ? glm::vec3(0.f, 0.f, 1.f) : glm::vec3(0.f, 1.f, 0.f);
 	glm::vec3 b = glm::normalize(glm::cross(n, t));
@@ -66,6 +58,14 @@ CPUGPU static glm::mat3 localRefMatrix(glm::vec3 n) {
 
 CPUGPU static glm::vec3 localToWorld(glm::vec3 n, glm::vec3 v) {
 	return glm::normalize(localRefMatrix(n) * v);
+}
+
+CPUGPU static glm::vec3 squareToHemiSphereUniform(const glm::vec3 n, const glm::vec2& sample)
+{
+	float z = sample.x;
+	float r = sqrtf(fmax(0.0f, 1.0f - z * z));
+	float phi = TWO_PI * sample.y;
+	return localToWorld(n, glm::vec3(r * cos(phi), r * sin(phi), z));
 }
 CPUGPU static glm::vec3 squareToHemiSphereCos(const glm::vec3 n, const glm::vec2& sample) {
 	glm::vec2 d = squareToDiskConcentric(sample);

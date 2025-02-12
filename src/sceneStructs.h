@@ -82,6 +82,7 @@ struct ShadeableIntersection
   glm::vec3 dir;
   glm::vec3 surfaceNormal;
   glm::vec2 uv;
+  glm::vec3 prev;
   int primitiveId = -1;
   int materialId;
   GPU void operator = (const ShadeableIntersection& rhs) {
@@ -92,5 +93,6 @@ struct ShadeableIntersection
 	  uv = rhs.uv;
 	  primitiveId = rhs.primitiveId;
 	  materialId = rhs.materialId;
+	  prev = rhs.prev;
   }
 };

@@ -38,7 +38,7 @@ public:
 		float min_T = FLT_MAX;
 		int min_index = -1;
 		glm::vec3 bary;
-		for (int i = 0; i < (verticesSize / 3); i++) {
+		for (int i = 0; i * 3 < verticesSize; i++) {
 			glm::vec3 tmp_bary;
 			float t = intersectByIndex(r, i, tmp_bary);
 			if (t > 0 && t < min_T) {
