@@ -308,99 +308,6 @@ __global__ void shadeFakeMaterial(
     }
 }
 
-__global__ void shadeMaterial(
-    int iter,
-    int num_paths,
-    ShadeableIntersection* shadeableIntersections,
-    PathSegment* pathSegments,
-    Material* materials) {
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx >= num_paths) {
-        return;
-	}
-    ShadeableIntersection intersection = shadeableIntersections[idx];
-    PathSegment& segment = pathSegments[idx];
-    // hit something
-	if (intersection.t > 0.0f) {
-		Material material = materials[intersection.materialId];
-		glm::vec3 materialColor = material.color;
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-        thrust::uniform_real_distribution<float> u01(0, 1);
-		segment.ray.origin += segment.ray.direction * intersection.t;
-
-		// if hit light source
-        if (material.emittance > 0.f) {
-            segment.color *= (material.emittance * materialColor);
-			segment.remainingBounces = 0;
-        } 
-        // if hit other, try to generate a new ray
-        else {
-			segment.remainingBounces--;
-
-            if (material.hasRefractive > 0.f) {    
-				glm::vec3 normal = glm::normalize(intersection.surfaceNormal);
-				glm::vec3 incident_dir = glm::normalize(segment.ray.direction);
-				float eta_i = 1.f;
-				float eta_t = material.indexOfRefraction;
-				float cos_theta = -glm::dot(incident_dir, normal);
-                if (cos_theta < 0.f) {
-					normal = -normal;
-					cos_theta = -cos_theta;
-					eta_i = material.indexOfRefraction;
-					eta_t = 1.f;
-                }
-
-				float r0 = (eta_i - eta_t) / (eta_i + eta_t);
-				r0 *= r0;
-				float reflection = fresnelSchlick(cos_theta, r0);
-				
-                float prob = u01(rng);
-                if (prob < reflection) {
-					// reflect the ray
-					glm::vec3 new_dir = glm::reflect(segment.ray.direction, intersection.surfaceNormal);
-					segment.ray.direction = glm::normalize(new_dir);
-                    segment.color *= material.specular.color;
-                }
-                else {
-					float eta = eta_i / eta_t;
-					glm::vec3 refraction_dir = glm::refract(incident_dir, normal, eta);
-                    if (glm::length(refraction_dir) != 0.f) {
-						segment.ray.direction = glm::normalize(refraction_dir);
-						segment.color *= materialColor;
-                    }
-                    else {
-						glm::vec3 reflection_dir = glm::reflect(incident_dir, normal);
-						segment.ray.direction = glm::normalize(reflection_dir);
-                        segment.color *= materialColor;
-                    }
-
-                }
-            }else if (material.hasReflective > 0.f) {
-                glm::vec3 reflection_dir = glm::reflect(segment.ray.direction, intersection.surfaceNormal);
-                segment.ray.direction = glm::normalize(reflection_dir);
-                float roughness = material.roughness;
-                if (material.roughness > 0.0f) {
-                    glm::vec3 random_dir = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
-                    random_dir = glm::normalize(glm::mix(reflection_dir, random_dir, roughness));
-                    segment.ray.direction = random_dir;
-                }
-                segment.color *= material.specular.color;
-            }
-            else {
-				glm::vec3 new_dir = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
-                segment.ray.direction = glm::normalize(new_dir);
-                segment.color *= materialColor;
-
-            }
-        }
-    }
-    else {
-        pathSegments[idx].color = glm::vec3(0.0f);
-		pathSegments[idx].remainingBounces = 0;
-    }
-    segment.ray.origin += EPSILON * segment.ray.direction;
-}
-
 __global__ void pathIntegrator(
     int iter,
     int num_paths,
@@ -536,21 +443,21 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-        computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>> (
+        /*computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>> (
             depth,
             num_paths,
             dev_paths,
             dev_geoms,
             hst_scene->geoms.size(),
             dev_intersections
-        );
-   //     computeIntersectionsScene << <numblocksPathSegmentTracing, blockSize1d >> > (
-   //         depth,
-   //         num_paths,
-   //         dev_paths,
-			//hst_scene->devScene,
-			//dev_intersections
-			//);
+        );*/
+        computeIntersectionsScene << <numblocksPathSegmentTracing, blockSize1d >> > (
+            depth,
+            num_paths,
+            dev_paths,
+			hst_scene->devScene,
+			dev_intersections
+			);
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
         depth++;
@@ -579,13 +486,6 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             
             );
         }
-        //shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
-        //    iter,
-        //    num_paths,
-        //    dev_intersections,
-        //    dev_paths,
-        //    dev_materials
-        //);
 		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			num_paths,

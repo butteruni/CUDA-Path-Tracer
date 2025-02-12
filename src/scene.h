@@ -33,9 +33,7 @@ public:
 		glm::vec3 v2 = vertices[index * 3 + 2];
 		return triangleIntersectionTest(v0, v1, v2, r, bray);
 	}
-	GPU void test() {
 
-	}
 	GPU void intersectTest(const Ray& r, ShadeableIntersection& isect) {
 		float min_T = FLT_MAX;
 		int min_index = -1;
@@ -62,6 +60,10 @@ public:
 			glm::vec2 uv1 = uvs[min_index * 3 + 1];
 			glm::vec2 uv2 = uvs[min_index * 3 + 2];
 			isect.uv = uv0 * bary.x + uv1 * bary.y + uv2 * bary.z;
+		}
+		else {
+			isect.t = -1;
+			isect.materialId = -1;
 		}
 	}
 };

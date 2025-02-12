@@ -123,13 +123,19 @@ CPUGPU float triangleIntersectionTest(
     glm::vec3 e2 = v2 - v0;
     glm::vec3 s = r.origin - v0;
     glm::vec3 dir = r.direction;
-    float denom = glm::dot(glm::cross(e1, dir), e2);
-    if (abs(denom) < EPSILON) return -1;
-    float u = -glm::dot(glm::cross(s, e2), dir) / denom;
+    glm::vec3 p = glm::cross(dir, e2);
+    float denom = glm::dot(p, e1);
+    float u = glm::dot(glm::cross(dir, e2), s) / denom;
+    
     if (u < 0 || u > 1) return -1;
-    float v = glm::dot(glm::cross(e1, s), dir) / denom;
+    
+    glm::vec3 q = glm::cross(s, e1);
+    float v = glm::dot(q, dir) / denom;
+    
     if (v < 0 || u + v > 1) return -1;
-    float t = -glm::dot(glm::cross(s, e2), e1) / denom;
-    bary = glm::vec3(1 - u - v, u, v);
+    
+    float t = glm::dot(q, e2) / denom;
+    bary = glm::vec3(1.f - u - v, u, v);
+    
     return t;
 }

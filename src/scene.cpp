@@ -53,7 +53,6 @@ void Scene::loadFromJSON(const std::string& jsonName)
         else if (p["TYPE"] == "Specular")
         {
             const auto& col = p["RGB"];
-            newMaterial.hasReflective = 1.0f;
 			newMaterial.roughness = p["ROUGHNESS"];
 			newMaterial.metallic = p["METALLIC"];
             newMaterial.color = glm::vec3(col[0], col[1], col[2]);
@@ -61,7 +60,6 @@ void Scene::loadFromJSON(const std::string& jsonName)
 		}
 		else if (p["TYPE"] == "Refractive")
 		{
-			newMaterial.hasRefractive = 1.0f;
 			newMaterial.indexOfRefraction = p["IOR"];
 			const auto& col = p["RGB"];
 			newMaterial.color = glm::vec3(col[0], col[1], col[2]);
@@ -170,7 +168,6 @@ void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
 			glm::vec3 vertex = glm::vec3(attrib.vertices[3 * index.vertex_index + 0],
 				attrib.vertices[3 * index.vertex_index + 1],
 				attrib.vertices[3 * index.vertex_index + 2]);
-            
 			glm::vec3 normal = glm::vec3(0);
             if (hasNormals) {
 			     normal = glm::vec3(attrib.normals[3 * index.normal_index + 0],
@@ -206,10 +203,10 @@ void Scene::toDevice()
             meshData.vertices.push_back(glm::vec3(geom.transform * glm::vec4(geom.meshData->vertices[i], 1.0f)));
             meshData.normals.push_back(glm::vec3(geom.invTranspose * glm::vec4(geom.meshData->normals[i], 0.0f)));
             meshData.uvs.push_back(geom.meshData->uvs[i]);
+			printf("Vertex: %s\n", glm::to_string(meshData.vertices.back()).c_str());
             if (i % 3 == 0) {
                 materialIDs.push_back(geom.materialid);
             }
-            std::cerr << meshData.vertices.back().x << '\n';
         }
     }
     hstScene.loadFromScene(*this);
