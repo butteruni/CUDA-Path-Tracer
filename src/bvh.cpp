@@ -1,8 +1,7 @@
 #include <stack>
 #include "bvh.h"
-int BVHBuilder::build(const std::vector<glm::vec3>& vertices,
-	std::vector<AABB>& aabbs, std::vector<LinearBVHNode>& linearNodes,
-	SplitMethod method) {
+int BVHBuilder::build(const std::vector<glm::vec3>& vertices, std::vector<AABB>& aabbs, 
+	std::vector<LinearBVHNode>& linearNodes, SplitMethod method) {
 	int faceSize = vertices.size() / 3;
 	int maxBVHSize = 2 * faceSize - 1;
 	aabbs.resize(maxBVHSize);
@@ -20,6 +19,14 @@ int BVHBuilder::build(const std::vector<glm::vec3>& vertices,
 		SAHBVHbuild(prims, nodeInfos, aabbs);
 		break;
 	}
+	for (int i = 0; i < nodeInfos.size(); ++i) {
+		if (nodeInfos[i].isLeaf)
+			std::cout << "leaf: " << i << " " << nodeInfos[i].index << std::endl;
+		else
+			std::cout << "node: " << i << " " << nodeInfos[i].size << std::endl;
+		std::cout << "bounds: " << aabbs[i].toString() << '\n';
+	}
+
 	flattenBVH(nodeInfos, linearNodes);
 	return maxBVHSize;
 }
@@ -29,13 +36,12 @@ void BVHBuilder::SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&
 	std::stack<treeInfo> stk;
 	stk.push({ 0, 0, (int)prims.size() - 1 });
 	while (stk.size()) {
-		auto &info = stk.top();
+		auto info = stk.top();
 		stk.pop();
 		int primSize = info.right - info.left + 1;
 		int nodeSize = primSize * 2 - 1;
-		bool isLeaf = nodeSize == 1;
+		bool isLeaf = (nodeSize == 1);
 		nodes[info.idx] = { isLeaf, isLeaf ? prims[info.left].primIndex : nodeSize};
-
 		AABB nodeAABB;
 		AABB centroid;
 		for (int i = info.left; i <= info.right; i++) {
@@ -98,9 +104,9 @@ void BVHBuilder::SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&
 					prims[l++] = subPrim[i];
 				}
 			}
-			l = glm::clamp(l, info.left, info.right);
+			l = glm::clamp(l, info.left, info.right - 1);
 			int lsize = 2 * (l - info.left + 1) - 1;
-			stk.push({ info.idx + 1 + lsize, l + 1, r });
+			stk.push({ info.idx + 1 + lsize, l + 1, info.right });
 			stk.push({ info.idx + 1, info.left, l});
 		}
 	}
@@ -112,23 +118,25 @@ void BVHBuilder::flattenBVH(const std::vector<BVHNodeInfo>& nodeInfos, std::vect
 	std::stack<int>stk;
 	stk.push(0);
 	int offset = 0;
-	//while (stk.size()) {
-	//	int idx = stk.top();
-	//	stk.pop();
-	//	auto& node = nodeInfos[idx];
-	//	bool isLeaf = node.isLeaf;
-	//	int nodeSize = isLeaf ? 1 : node.size;
-	//	linearNodes[idx].aabbIndex = idx;
-	//	linearNodes[idx].primIndex = isLeaf ? node.index : -1;
-	//	linearNodes[idx].secondChild = offset + nodeSize;
-	//	offset++;
-	//	if (!isLeaf) {
-	//		int left = idx + 1;
-	//		bool leftLeaf = nodeInfos[left].isLeaf;
-	//		int leftSize = leftLeaf ? 1 : nodeInfos[left].size;
-	//		int right = left + leftSize;
-	//		stk.push(right);
-	//		stk.push(left);
-	//	}
-	//}
+	while (stk.size()) {
+		int idx = stk.top();
+		stk.pop();
+		auto& node = nodeInfos[idx];
+		bool isLeaf = node.isLeaf;
+		int nodeSize = isLeaf ? 1 : node.size;
+		linearNodes[idx].aabbIndex = idx;
+		linearNodes[idx].primIndex = isLeaf ? node.index : -1;
+		linearNodes[idx].secondChild = offset + nodeSize;
+		std::cout << idx << " " << offset << " " 
+			<< nodeSize << " " << linearNodes[idx].secondChild << std::endl;
+		offset++;
+		if (!isLeaf) {
+			int left = idx + 1;
+			bool leftLeaf = nodeInfos[left].isLeaf;
+			int leftSize = leftLeaf ? 1 : nodeInfos[left].size;
+			int right = left + leftSize;
+			stk.push(right);
+			stk.push(left);
+		}
+	}
 }
