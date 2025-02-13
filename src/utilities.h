@@ -112,6 +112,31 @@ CPUGPU inline glm::vec3 ACES(glm::vec3& color) {
 	const float e = 0.14f;
 	return glm::clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.f, 1.f);
 }
+CPUGPU inline glm::vec3 calcfilmic(glm::vec3& color) {
+	const float A = 0.22f;
+	const float B = 0.3f;
+	const float C = 0.1f;
+	const float D = 0.2f;
+	const float E = 0.01f;
+	const float F = 0.3f;
+	return (color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F);
+}
+CPUGPU inline glm::vec3 uncharted2filmic(glm::vec3& color) {
+	float exposureBias = 1.6f;
+	glm::vec3 curr = exposureBias * color;
+	glm::vec3 W = glm::vec3(11.2f);
+	glm::vec3 whiteScale = glm::vec3(1.0f) / uncharted2filmic(W);
+	return uncharted2filmic(curr) * whiteScale;
+}
+
 CPUGPU inline glm::vec3 gammaCorrect(glm::vec3& color) {
 	return glm::pow(color, glm::vec3(1.f / 2.2f));
+}
+
+CPUGPU inline float rgbTolumin(const glm::vec3 &c) {
+	return glm::dot(c, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+}
+
+CPUGPU inline std::string vec3ToString(const glm::vec3 &p) {
+	return std::to_string(p.x) + ", " + std::to_string(p.y) + ", " + std::to_string(p.z);
 }

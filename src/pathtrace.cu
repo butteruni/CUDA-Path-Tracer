@@ -33,9 +33,11 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution, int iter, glm
 
         glm::vec3 color;
 		color = image[index] / (float)iter;
-        glm::ivec3 icolor = glm::clamp(glm::ivec3(gammaCorrect(ACES(color)) * 255.f),
-            glm::ivec3(0), glm::ivec3(255));
+		//color = uncharted2filmic(color);
+        color = ACES(color);
+        glm::ivec3 icolor = glm::clamp(glm::ivec3(color * 255.f), glm::ivec3(0), glm::ivec3(255));
         // Each thread writes one pixel location in the texture (textel)
+
         pbo[index].w = 0;
         pbo[index].x = icolor.x;
         pbo[index].y = icolor.y;

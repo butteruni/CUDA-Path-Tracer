@@ -8,6 +8,7 @@
 #include "utilities.h"
 #include "sceneStructs.h"
 #include "material.h"
+#include "bvh.h"
 #include "intersections.h"
 using namespace std;
 
@@ -20,6 +21,8 @@ public:
 	Material* materials = nullptr;
 	int* materialIDs = nullptr;
 	int verticesSize = 0;
+	AABB* deviceBounds = nullptr;
+	LinearBVHNode* devlinearNodes = nullptr;
 	void loadFromScene(const Scene& scene);
 	void clear();
 
@@ -82,6 +85,8 @@ public:
 	std::vector<Geom> geoms;
 	std::vector<Material> materials;
 	std::vector<int> materialIDs;
+	std::vector<AABB> bounds;
+	std::vector<LinearBVHNode> linearNodes;
 	MeshData meshData;
 	RenderState state;
 	GPUScene hstScene;

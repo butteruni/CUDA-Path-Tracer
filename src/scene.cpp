@@ -209,6 +209,7 @@ void Scene::toDevice()
             }
         }
     }
+	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
     hstScene.loadFromScene(*this);
     cudaMalloc(&devScene, sizeof(GPUScene));
     cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
@@ -240,6 +241,12 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaMalloc(&materialIDs, getVectorByteSize(scene.materialIDs));
     cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
     checkCUDAError("load material");
+
+    cudaMalloc(&deviceBounds, getVectorByteSize(scene.bounds));
+	cudaMemcpy(deviceBounds, scene.bounds.data(), getVectorByteSize(scene.bounds), cudaMemcpyHostToDevice);
+	cudaMalloc(&devlinearNodes, getVectorByteSize(scene.linearNodes));
+	cudaMemcpy(devlinearNodes, scene.linearNodes.data(), getVectorByteSize(scene.linearNodes), cudaMemcpyHostToDevice);
+	checkCUDAError("load bounds");
 }
 
 void GPUScene::clear() {

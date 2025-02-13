@@ -81,6 +81,7 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+    src/bvh.cpp
     src/tiny_obj_loader.cpp
     src/tiny_gltf.cpp
 )
