@@ -205,10 +205,11 @@ __global__ void computeIntersectionsScene(
 
 __global__ void pathIntegrator(
     int iter,
+    int depth,
     int num_paths,
     ShadeableIntersection* shadeableIntersections,
     PathSegment* pathSegments,
-    Material* materials) {
+    GPUScene *dev_scene) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_paths) {
         return;
@@ -217,7 +218,7 @@ __global__ void pathIntegrator(
     PathSegment& segment = pathSegments[idx];
     if (intersection.t > 0.f) {
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-	    Material material = materials[intersection.materialId];
+	    Material material = dev_scene->materials[intersection.materialId];
         segment.ray.origin = intersection.point;
         if (material.type == MaterialType::Light) {
             segment.color *= (material.color * material.emittance);
@@ -383,10 +384,11 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         }
 		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
+            depth,
 			num_paths,
 			dev_intersections,
 			dev_paths,
-			dev_materials
+			hst_scene->devScene
 			);
         checkCUDAError("shading");
         cudaDeviceSynchronize();

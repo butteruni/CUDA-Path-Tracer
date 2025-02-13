@@ -1,6 +1,7 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <thrust/random.h>
+#include <stack>
 #include "macro.h"
 __host__ __device__ inline glm::vec3 calculateRandomDirectionInHemisphere(
 	glm::vec3 normal,
@@ -86,7 +87,7 @@ CPUGPU static glm::vec3 GGX_sampleNormal(const glm::vec3& n, const glm::vec3 &wo
 	glm::vec2 p = squareToDiskConcentric(r);
 	float h = sqrtf(fmax(0.f, 1.f - p.x * p.x));
 	p.y = (1.f - h) * glm::sqrt(1.f - p.x * p.x) + h * p.y;
-	float pz = glm::sqrt(glm::max(0.f, 1.f - p.length()));
+	float pz = glm::sqrt(glm::max(0.f, 1.f - glm::length(p)));
 	glm::vec3 nh = p.x * t1 + p.y * t2 + pz * wh;
 	nh = glm::vec3(nh.x * alpha, nh.y * alpha, glm::max(0.f, nh.z));
 	return glm::normalize(refMat * nh);
@@ -111,6 +112,13 @@ GPU inline glm::vec3 sample3D(thrust::default_random_engine& rng) {
 GPU inline glm::vec4 sample4D(thrust::default_random_engine& rng) {
 	return glm::vec4(sample3D(rng), sample1D(rng));
 }
+CPUGPU inline glm::vec3 sampleWithinTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec2& sample) {
+	glm::vec2 uv = glm::sqrt(sample);
+	uv.y = 1.f - uv.x;
+	uv *= 1.f - uv.y;
+	return v0 * uv.x + v1 * uv.y + v2 * (1.f - uv.x - uv.y);
+}
+// use for multiple importance sampling
 template <typename T>
 struct DF
 {
@@ -118,11 +126,58 @@ struct DF
 	int failId;
 };
 template <typename T>
-class Sampler1D {
-
-};
-
-template<typename T>
-class GPUSampler1D {
-
+class DiscreteSampler1D {
+public:
+	using DistributionT = DF<T>;
+	std::vector<DistributionT> binomDistribution;
+	DiscreteSampler1D() = default;
+	DiscreteSampler1D(std::vector<T> distribution) {
+		binomDistribution.resize(distribution.size());
+		T sum = 0;
+		for (int i = 0; i < distribution.size(); i++) {
+			sum += distribution[i];
+		}
+		T sum_inv = static_cast<T>(distribution.size()) / sum;
+		for (auto& x : distribution) {
+			x *= sum_inv;
+		}
+		std::stack<DistributionT> greaterThanOne;
+		std::stack<DistributionT> lessThanOne;
+		for (int i = 0; i < distribution.size(); i++) {
+			if (distribution[i] > 1.f) {
+				greaterThanOne.push({ distribution[i], i });
+			}
+			else {
+				lessThanOne.push({ distribution[i], i });
+			}
+		}
+		while (!greaterThanOne.empty() && !lessThanOne.empty()) {
+			auto& g = greaterThanOne.top();
+			auto& l = lessThanOne.top();
+			greaterThanOne.pop();
+			lessThanOne.pop();
+			binomDistribution[l.failId] = { l.prob, g.failId };
+			g.prob -= 1.f - l.prob;
+			if (g.prob > 1.f) {
+				greaterThanOne.push(g);
+			}
+			else {
+				lessThanOne.push(g);
+			}
+		}
+		while (!greaterThanOne.empty()) {
+			auto& g = greaterThanOne.top();
+			greaterThanOne.pop();
+			binomDistribution[g.failId] = g;
+		}
+		while (!lessThanOne.empty()) {
+			auto& l = lessThanOne.top();
+			lessThanOne.pop();
+			binomDistribution[l.failId] = l;
+		}
+	}
+	int sample(float u, float v) {
+		int idx = int(float(binomDistribution.size()) * u);
+		return v < binomDistribution[idx].prob ? idx : binomDistribution[idx].failId;
+	}
 };

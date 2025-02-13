@@ -140,3 +140,18 @@ CPUGPU inline float rgbTolumin(const glm::vec3 &c) {
 CPUGPU inline std::string vec3ToString(const glm::vec3 &p) {
 	return std::to_string(p.x) + ", " + std::to_string(p.y) + ", " + std::to_string(p.z);
 }
+CPUGPU inline float triangleArea(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2) {
+	return 0.5f * glm::length(glm::cross(v1 - v0, v2 - v0));
+}
+CPUGPU inline float luminance(const glm::vec3& color) {
+	return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+}
+CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, const glm::vec3& normalY) {
+    glm::vec3 yTox = x - y;
+	glm::vec3 dir = glm::normalize(yTox);
+	return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
+}
+CPUGPU inline float powerHeuristic(float f, float g) {
+	float f2 = f * f;
+	return f2 / (f2 + g * g);
+}

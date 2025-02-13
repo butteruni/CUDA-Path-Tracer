@@ -68,8 +68,11 @@ struct PathSegment
 {
     Ray ray;
     glm::vec3 color;
+    glm::vec3 radiance;
     int pixelIndex;
     int remainingBounces;
+	float pdf;
+    bool deltaSample = false;
 };
 
 // Use with a corresponding PathSegment to do:

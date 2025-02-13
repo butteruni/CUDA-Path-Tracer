@@ -199,6 +199,8 @@ void Scene::toDevice()
     for (auto& geom : geoms) {
         if (geom.type != MESH)
             continue;
+        glm::vec3 radianceUnit = materials[geom.materialid].color;
+        float powerUnit = luminance(radianceUnit);
         for (size_t i = 0; i < geom.meshData->vertices.size(); i++) {
             meshData.vertices.push_back(glm::vec3(geom.transform * glm::vec4(geom.meshData->vertices[i], 1.0f)));
             meshData.normals.push_back(glm::vec3(geom.invTranspose * glm::vec4(geom.meshData->normals[i], 0.0f)));
@@ -206,10 +208,23 @@ void Scene::toDevice()
 			printf("Vertex: %s\n", glm::to_string(meshData.vertices.back()).c_str());
             if (i % 3 == 0) {
                 materialIDs.push_back(geom.materialid);
-            }
+			}
+			else if (i % 3 == 2 && materials[geom.materialid].type == Light) {
+				glm::vec3 v0 = meshData.vertices[i - 2];
+				glm::vec3 v1 = meshData.vertices[i - 1];
+				glm::vec3 v2 = meshData.vertices[i];
+				float area = triangleArea(v0, v1, v2);
+				float power = powerUnit * area;
+				lightPrimIds.push_back(meshData.vertices.size() / 3);
+				lightUnitRadiance.push_back(radianceUnit);
+				lightPower.push_back(power);
+				sumLightPower += power;
+				numLightPrim++;
+			}
         }
     }
 	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
+	lightSampler = DiscreteSampler1D<float>(lightPower);
     hstScene.loadFromScene(*this);
     cudaMalloc(&devScene, sizeof(GPUScene));
     cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
@@ -247,6 +262,17 @@ void GPUScene::loadFromScene(const Scene& scene) {
 	cudaMalloc(&devlinearNodes, getVectorByteSize(scene.linearNodes));
 	cudaMemcpy(devlinearNodes, scene.linearNodes.data(), getVectorByteSize(scene.linearNodes), cudaMemcpyHostToDevice);
 	checkCUDAError("load bounds");
+
+	cudaMalloc(&devLightPrimIds, getVectorByteSize(scene.lightPrimIds));
+	cudaMemcpy(devLightPrimIds, scene.lightPrimIds.data(), getVectorByteSize(scene.lightPrimIds), cudaMemcpyHostToDevice);
+	cudaMalloc(&devLightUnitRadiance, getVectorByteSize(scene.lightUnitRadiance));
+	cudaMemcpy(devLightUnitRadiance, scene.lightUnitRadiance.data(), getVectorByteSize(scene.lightUnitRadiance), cudaMemcpyHostToDevice);
+	cudaMalloc(&devLightDistribution, getVectorByteSize(scene.lightSampler.binomDistribution));
+	cudaMemcpy(devLightDistribution, scene.lightSampler.binomDistribution.data(), getVectorByteSize(scene.lightSampler.binomDistribution), cudaMemcpyHostToDevice);
+    devNumLightPrim = scene.numLightPrim;
+	devSumLightPower = scene.sumLightPower;
+
+
 }
 
 void GPUScene::clear() {

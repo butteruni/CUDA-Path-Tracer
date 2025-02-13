@@ -181,12 +181,33 @@ struct Material
 			sample.pdf = 1.f;
 		}
 	}
-	CPUGPU glm::vec3 BSDF() {
+	CPUGPU glm::vec3 BSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 wi) {
+		switch (type)
+		{
+		case Lambertian:
+			return DiffuseBSDF();
+			break;
+		case Conductor:
+			return ConductorBSDF(n, wo, wi);
+			break;
+		case Dielectric:
+			return DielectricBSDF();
+			break;
+		}
 		return glm::vec3(0.f);
 	}
-	CPUGPU float pdf(const glm::vec3& n, const glm::vec3& wi, const glm::vec3 wo) {
+	CPUGPU float pdf(const glm::vec3& n, const glm::vec3& wo, const glm::vec3 wi) {
+		switch (type) {
+		case MaterialType::Lambertian:
+			return DiffusePdf(n, wi);
+		case MaterialType::Conductor:
+			return ConductorPdf(n, wo, wi);
+		case MaterialType::Dielectric:
+			return DielectricPdf(n, wi);
+		default:
+			return 0.f;
+		}
 		
-		return 0.f;
 	}
 	CPUGPU void SampleBSDF(const glm::vec3& n, const glm::vec3& wo, const glm::vec3& r, BSDFSample& sample) {
 		switch (type) {
