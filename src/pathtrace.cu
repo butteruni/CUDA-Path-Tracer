@@ -154,6 +154,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         //segment.ray.direction = random_light_dir(cam, x, y, rng);
         segment.ray = physical_light(cam, x, y, rng);
         //segment.ray.origin = cam.position;
+        segment.radiance = glm::vec3(0.f);
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
@@ -247,7 +248,74 @@ __global__ void pathIntegrator(
 	segment.ray.origin += EPSILON * segment.ray.direction;
 }
 
-
+__global__ void misPathIntegrator(
+    int iter,
+    int depth,
+    int num_paths,
+    ShadeableIntersection* shadeableIntersections,
+    PathSegment* pathSegments,
+    GPUScene* dev_scene) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_paths) {
+        return;
+    }
+	ShadeableIntersection intersection = shadeableIntersections[idx];
+	PathSegment& segment = pathSegments[idx];
+    if (intersection.primitiveId == -1) {
+        return;
+    }
+	thrust::default_random_engine rng(makeSeededRandomEngine(iter, idx, depth));
+	Material material = dev_scene->materials[intersection.materialId];
+    glm::vec3 sumRadiance(0.f);
+    if (material.type == MaterialType::Light) {
+		glm::vec3 radiance = material.color * material.emittance;
+        if (depth == 0) {
+			sumRadiance += radiance;
+        }
+        else if (segment.deltaSample) {
+			sumRadiance += radiance * segment.color;
+        }
+        else {
+            float lightPdf = luminance(radiance) * dev_scene->devSumLightPowerInv *
+                computeSolidAngle(intersection.prev, intersection.point, intersection.surfaceNormal);
+            float bsdfPdf = segment.pdf;
+			float weight = powerHeuristic(bsdfPdf, lightPdf);
+			sumRadiance += radiance * segment.color * weight;
+        }
+		segment.remainingBounces = 0;
+    }
+    else {
+		bool deltaBSDF = (material.type == MaterialType::Dielectric);
+        if (!deltaBSDF) {
+			glm::vec3 radiance(0.f);
+            glm::vec3 wi;
+			float lightPdf = dev_scene->sampleDirectLight(intersection.prev, sample4D(rng), radiance, wi);
+            if (lightPdf > 0) {
+				glm::vec3 bsdf = material.BSDF(intersection.surfaceNormal, intersection.prev, wi);
+				float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.prev, wi);
+				float weight = powerHeuristic(lightPdf, bsdfPdf);
+                sumRadiance += segment.color * bsdf * radiance * weight * max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf;
+            }
+        }
+		BSDFSample sample;
+		material.SampleBSDF(intersection.surfaceNormal, intersection.prev, sample3D(rng), sample);
+        if (sample.flags != Unset) {
+			bool deltaSample = sample.flags & BxDFFlags::Specular;
+			segment.color *= sample.bsdf / sample.pdf;
+			if (!deltaSample)
+                segment.color *= glm::abs(glm::dot(sample.wi, intersection.surfaceNormal));
+			segment.ray.direction = glm::normalize(sample.wi);
+			segment.ray.origin = intersection.point + EPSILON * segment.ray.direction;
+			segment.deltaSample = deltaSample;
+			segment.pdf = sample.pdf;
+			segment.remainingBounces--;
+        }
+        else {
+			segment.remainingBounces = 0;
+        }
+    }
+    segment.radiance += sumRadiance;
+}
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
 {
@@ -382,9 +450,17 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             
             );
         }
-		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+		/*pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
             depth,
+			num_paths,
+			dev_intersections,
+			dev_paths,
+			hst_scene->devScene
+			);*/
+		misPathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+			iter,
+			depth,
 			num_paths,
 			dev_intersections,
 			dev_paths,

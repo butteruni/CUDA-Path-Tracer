@@ -199,7 +199,7 @@ void Scene::toDevice()
     for (auto& geom : geoms) {
         if (geom.type != MESH)
             continue;
-        glm::vec3 radianceUnit = materials[geom.materialid].color;
+        glm::vec3 radianceUnit = materials[geom.materialid].color * materials[geom.materialid].emittance;
         float powerUnit = luminance(radianceUnit);
         for (size_t i = 0; i < geom.meshData->vertices.size(); i++) {
             meshData.vertices.push_back(glm::vec3(geom.transform * glm::vec4(geom.meshData->vertices[i], 1.0f)));
@@ -223,6 +223,7 @@ void Scene::toDevice()
 			}
         }
     }
+	std::cout << lightPrimIds.size() << " light primitives" << std::endl;
 	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
 	lightSampler = DiscreteSampler1D<float>(lightPower);
     hstScene.loadFromScene(*this);
@@ -272,6 +273,7 @@ void GPUScene::loadFromScene(const Scene& scene) {
 	cudaMemcpy(devLightDistribution, scene.lightSampler.binomDistribution.data(), getVectorByteSize(scene.lightSampler.binomDistribution), cudaMemcpyHostToDevice);
     devNumLightPrim = scene.numLightPrim;
 	devSumLightPower = scene.sumLightPower;
+    devSumLightPowerInv = 1.f / devSumLightPower;
     checkCUDAError("load Light sample");
 
 }
