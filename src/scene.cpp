@@ -205,7 +205,6 @@ void Scene::toDevice()
             meshData.vertices.push_back(glm::vec3(geom.transform * glm::vec4(geom.meshData->vertices[i], 1.0f)));
             meshData.normals.push_back(glm::vec3(geom.invTranspose * glm::vec4(geom.meshData->normals[i], 0.0f)));
             meshData.uvs.push_back(geom.meshData->uvs[i]);
-			printf("Vertex: %s\n", glm::to_string(meshData.vertices.back()).c_str());
             if (i % 3 == 0) {
                 materialIDs.push_back(geom.materialid);
 			}

@@ -22,8 +22,8 @@ int BVHBuilder::build(const std::vector<glm::vec3>& vertices, std::vector<AABB>&
 		SAHBVHbuild(prims, nodeInfos, aabbs);
 		break;
 	}
-
 	flattenBVH(nodeInfos, linearNodes);
+	std::cout << "BVHSize: " << linearNodes.size() << "\n";
 	return maxBVHSize;
 }
 void BVHBuilder::SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>& nodeInfos, std::vector<AABB>& aabbs) {
