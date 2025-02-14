@@ -5,11 +5,9 @@
 #include "macro.h"
 #include "utilities.h"
 struct AABB {
-	glm::vec3 pmin, pmax;
-	AABB() {
-		pmin = glm::vec3(FLT_MAX);
-		pmax = glm::vec3(-FLT_MAX);
-	}
+	glm::vec3 pmin = glm::vec3(FLT_MAX);
+	glm::vec3 pmax = glm::vec3(FLT_MIN);
+	AABB() = default;
 	CPUGPU AABB(const glm::vec3& p) : pmin(p), pmax(p) {}
 	CPUGPU AABB(const glm::vec3& pmin, const glm::vec3& pmax) : pmin(pmin), pmax(pmax) {}
 	CPUGPU AABB(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2) {
@@ -34,6 +32,9 @@ struct AABB {
 		return 0.5f * (pmin + pmax);
 	}
 	CPUGPU glm::vec3 offset(const glm::vec3& p) {
+		if (pmin.x > pmax.x) {
+			return p;
+		}
 		glm::vec3 o = p - pmin;
 		o /= extend();
 		return o;
@@ -54,8 +55,8 @@ struct AABB {
 			return 2;
 		}
 	}
-	CPUGPU bool intersect(const Ray& r, float& tmin, float& tmax) {
-		float t0 = 0.f, t1 = FLT_MAX;
+	CPUGPU bool intersect(const Ray& r, float& tmax) {
+		float t0 = 0.f, t1 = tmax;
 		for (int i = 0; i < 3; i++) {
 			float invD = 1.f / r.direction[i];
 			float tNear = (pmin[i] - r.origin[i]) * invD;
@@ -65,13 +66,8 @@ struct AABB {
 				tNear = tFar;
 				tFar = tmp;
 			}
-			t0 = tNear > t0 ? tNear : t0;
-			t1 = tFar < t1 ? tFar : t1;
-			if (t0 > t1) {
-				return false;
-			}
+			if (tNear > t1 || tFar < t0) return false;
 		}
-		tmin = t0;
 		tmax = t1;
 		return true;
 	}
@@ -82,7 +78,8 @@ struct AABB {
 
 
 struct treeInfo {
-	int idx, left, right;
+	int idx;
+	int left, right;
 };
 struct BVHNodeInfo {
 	bool isLeaf;
@@ -97,12 +94,13 @@ struct BucketInfo {
 };
 struct LinearBVHNode {
 	int aabbIndex;
-	int axis;
-	int nPrims;
-	union {
-		int primIndex;
-		int secondChild;
-	};
+	int primIndex;
+	int secondChild;
+};
+struct TreeBVHNode {
+	int aabbIndex;
+	int primIndex;
+	int left, right;
 };
 struct Prim {
 	int primIndex;
@@ -116,9 +114,10 @@ enum class SplitMethod {
 };
 
 struct BVHBuilder {
-	static int build(const std::vector<glm::vec3>& vertices,
-		std::vector<AABB>& aabbs, std::vector<LinearBVHNode>& linearNodes,
-		SplitMethod method = SplitMethod::SAH);
+	static int build(const std::vector<glm::vec3>& vertices, std::vector<AABB>& aabbs,
+		std::vector<LinearBVHNode>& linearNodes, SplitMethod method = SplitMethod::SAH);
+	static int buildTree(const std::vector<glm::vec3> &vertices, std::vector<AABB>& aabbs
+		, std::vector<TreeBVHNode>& nodes);
 	static void SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&nodes, std::vector<AABB>& aabbs);
 	static void HLBVHbuild();
 	static void flattenBVH(const std::vector<BVHNodeInfo> &nodes, std::vector<LinearBVHNode>&linearNodes);

@@ -24,7 +24,7 @@ public:
 	
 	AABB* deviceBounds = nullptr;
 	LinearBVHNode* devlinearNodes = nullptr;
-
+	int devNumNodes = 0;
 	int* devLightPrimIds = nullptr;
 	glm::vec3* devLightUnitRadiance = nullptr;
 	DF<float>* devLightDistribution;
@@ -79,7 +79,7 @@ public:
 		wi = glm::normalize(lightdir);
 		return luminance(radiance) / devSumLightPower * computeSolidAngle(pos, samplePoint, lightNormal);
 	}
-	GPU void intersectTest(const Ray& r, ShadeableIntersection& isect) {
+	GPU void intersectNaive(const Ray& r, ShadeableIntersection& isect) {
 		float min_T = FLT_MAX;
 		int min_index = -1;
 		glm::vec3 bary;
@@ -110,6 +110,56 @@ public:
 			isect.t = -1;
 			isect.materialId = -1;
 		}
+	}
+	GPU void intersectAccel(const Ray& r, ShadeableIntersection& isect) {
+		float min_T = FLT_MAX;
+		int min_index = -1;
+		glm::vec3 bary;
+		int cur_node = 0;
+		while (cur_node != devNumNodes) {
+
+			AABB& bound = deviceBounds[devlinearNodes[cur_node].aabbIndex];
+			if (bound.intersect(r, min_T)) {
+				if (devlinearNodes[cur_node].primIndex != -1) {
+					int primId = devlinearNodes[cur_node].primIndex;
+					glm::vec3 tmp_bary;
+					float t = intersectByIndex(r, primId, tmp_bary);
+					if (t > 0 && t < min_T) {
+						min_T = t;
+						min_index = primId;
+						bary = tmp_bary;
+					}
+				}
+				cur_node++;
+			}
+			else {
+				cur_node = devlinearNodes[cur_node].secondChild;
+			}
+		}
+		isect.primitiveId = min_index;
+		if (min_index != -1) {
+			isect.t = min_T;
+			isect.materialId = materialIDs[min_index];
+			isect.point = r.origin + min_T * r.direction;
+			glm::vec3 n0 = normals[min_index * 3];
+			glm::vec3 n1 = normals[min_index * 3 + 1];
+			glm::vec3 n2 = normals[min_index * 3 + 2];
+			isect.surfaceNormal = n0 * bary.x + n1 * bary.y + n2 * bary.z;
+			glm::vec2 uv0 = uvs[min_index * 3];
+			glm::vec2 uv1 = uvs[min_index * 3 + 1];
+			glm::vec2 uv2 = uvs[min_index * 3 + 2];
+			isect.uv = uv0 * bary.x + uv1 * bary.y + uv2 * bary.z;
+		}
+		else {
+			isect.t = -1;
+			isect.materialId = -1;
+		}
+	}
+	GPU void intersectTest(const Ray& r, ShadeableIntersection& isect) {
+		if (BVH_ACCELERATION) 
+			intersectAccel(r, isect);
+		else
+			intersectNaive(r, isect);
 	}
 };
 class Scene

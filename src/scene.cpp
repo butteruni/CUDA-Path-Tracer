@@ -257,6 +257,7 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
     checkCUDAError("load material");
 
+	devNumNodes = scene.linearNodes.size();
     cudaMalloc(&deviceBounds, getVectorByteSize(scene.bounds));
 	cudaMemcpy(deviceBounds, scene.bounds.data(), getVectorByteSize(scene.bounds), cudaMemcpyHostToDevice);
 	cudaMalloc(&devlinearNodes, getVectorByteSize(scene.linearNodes));
@@ -271,7 +272,7 @@ void GPUScene::loadFromScene(const Scene& scene) {
 	cudaMemcpy(devLightDistribution, scene.lightSampler.binomDistribution.data(), getVectorByteSize(scene.lightSampler.binomDistribution), cudaMemcpyHostToDevice);
     devNumLightPrim = scene.numLightPrim;
 	devSumLightPower = scene.sumLightPower;
-
+    checkCUDAError("load Light sample");
 
 }
 
