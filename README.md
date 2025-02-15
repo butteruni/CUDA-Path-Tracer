@@ -16,13 +16,13 @@ CUDA Path Tracer
 
   
 
-|          Diffuse          |
-| :-----------------------: |
-|  ![](.\img\diffuse.png)   |
-|       **Conductor**       |
-| ![](.\img\conductor.png)  |
-|       **Dieletric**       |
-| ![](.\img\dielectric.png) |
+|                           Diffuse                            |
+| :----------------------------------------------------------: |
+| ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/diffuse.png?raw=true) |
+|                        **Conductor**                         |
+| ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/conductor.png?raw=true) |
+|                        **Dieletric**                         |
+| ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/dielectric.png?raw=true) |
 
 
 
@@ -32,6 +32,6 @@ CUDA Path Tracer
 
 - Reshuffle by Material
 
-  ![](D:\Github\self_repos\CUDA-Path-Tracer\img\counductor_bunny.png)
+  ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/conductor_bunny.png?raw=true)
 
 ​	69642 triangles rendered in 2.4fps(about 400ms per frame)

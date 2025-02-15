@@ -26,7 +26,7 @@
         {
             "TYPE":"Conductor",
             "RGB":[0.98, 0.98, 0.98],
-            "ROUGHNESS":0.2,
+            "ROUGHNESS":0.15,
             "METALLIC":1.0,
             "IOR":1.1
         },
@@ -107,11 +107,11 @@
             "SCALE":[5, 5, 5]
         },
         {
-            "name": "sphere",
+            "name": "bunny",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\stanford-bunny.obj",
+            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\sphere.obj",
             "MATERIAL":"conductor_white",
-            "TRANS":[0.0,4.0,0.0],
+            "TRANS":[-1,4.0,-1],
             "ROTAT":[0.0,0.0,0.0],
             "SCALE":[1.5,1.5,1.5]
         }
