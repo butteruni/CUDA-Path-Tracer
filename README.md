@@ -35,3 +35,9 @@ CUDA Path Tracer
   ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/conductor_bunny.png?raw=true)
 
 ​	69642 triangles rendered in 2.4fps(about 400ms per frame)
+
+## Todo Lists:
+
+- environment map
+- image based texture
+- multi-importance sampling
