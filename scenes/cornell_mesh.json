@@ -26,8 +26,9 @@
         {
             "TYPE":"Conductor",
             "RGB":[0.98, 0.98, 0.98],
-            "ROUGHNESS":0.3,
-            "METALLIC":1.0
+            "ROUGHNESS":0.2,
+            "METALLIC":1.0,
+            "IOR":1.1
         },
         "dielectric_white":
         {
@@ -108,7 +109,7 @@
             "name" : "sphere",
             "TYPE" : "mesh",
             "MESH" : "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\sphere.obj",
-            "MATERIAL" : "diffuse_white",
+            "MATERIAL" : "conductor_white",
             "TRANS" : [-1, 4, -1],
             "ROTAT" : [30.0, 60.0, 0.0],
             "SCALE" : [2, 2, 2]

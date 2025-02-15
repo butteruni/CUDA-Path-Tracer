@@ -450,22 +450,22 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             
             );
         }
-		/*pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
             depth,
 			num_paths,
 			dev_intersections,
 			dev_paths,
 			hst_scene->devScene
-			);*/
-		misPathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
-			iter,
-			depth,
-			num_paths,
-			dev_intersections,
-			dev_paths,
-			hst_scene->devScene
 			);
+		//misPathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+		//	iter,
+		//	depth,
+		//	num_paths,
+		//	dev_intersections,
+		//	dev_paths,
+		//	hst_scene->devScene
+		//	);
         checkCUDAError("shading");
         cudaDeviceSynchronize();
         PathSegment* new_end = thrust::stable_partition(
