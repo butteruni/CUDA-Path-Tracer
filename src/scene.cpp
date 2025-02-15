@@ -222,6 +222,7 @@ void Scene::toDevice()
 			}
         }
     }
+	std::cout << meshData.vertices.size() / 3 << " triangles" << std::endl;
 	std::cout << lightPrimIds.size() << " light primitives" << std::endl;
 	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::EQUAL);
 

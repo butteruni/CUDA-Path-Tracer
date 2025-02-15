@@ -73,7 +73,7 @@ CPUGPU inline float Schlick_GGX(float cosTheta, float k) {
 	return cosTheta / (cosTheta * (1.f - k) + k);
 }
 CPUGPU inline float Smith_GGX(float cosThetaI, float cosThetaO, float alphaG) {
-	return Schlick_GGX(cosThetaI, alphaG) * Schlick_GGX(cosThetaO, alphaG);
+	return Schlick_GGX(glm::abs(cosThetaI), alphaG) * Schlick_GGX(glm::abs(cosThetaO), alphaG);
 }
 // Normal Distribution Function
 CPUGPU inline float GGX_D(float cosThetaH, float alphaG) {
@@ -83,7 +83,7 @@ CPUGPU inline float GGX_D(float cosThetaH, float alphaG) {
 }
 CPUGPU inline float GGX_Pdf(glm::vec3 n, glm::vec3 m, glm::vec3 wo, float alpha) {
 	return GGX_D(glm::dot(n, m), alpha) * Schlick_GGX(glm::dot(n, wo), alpha) 
-		* fabs(glm::dot(n, m) / glm::dot(n, wo));
+		* fabs(glm::dot(wo, m) / glm::dot(n, wo));
 }
 enum MaterialType {
 	Lambertian,
@@ -121,7 +121,7 @@ struct Material
 		glm::vec3 h = glm::normalize(wo + wi);
 		float cosThetaO = glm::dot(n, wo);
 		float cosThetaI = glm::dot(n, wi);
-		if (cosThetaI * cosThetaO < EPSILON) {
+		if (cosThetaI * cosThetaO < 1e-7f) {
 			return glm::vec3(0.f);
 		}
 		glm::vec3 F = fresnelSchlick(glm::dot(h, wo), glm::mix(glm::vec3(.08f), color, metallic));
@@ -149,7 +149,7 @@ struct Material
 			glm::vec3 h = GGX_sampleNormal(n, wo, glm::vec2(r.x, r.y), alpha);
 			sample.wi = -glm::reflect(wo, h);
 		}
-		if (glm::dot(n, sample.wi) < EPSILON) {
+		if (glm::dot(n, sample.wi) < 0.f) {
 			sample.flags = BxDFFlags::Unset;
 		}
 		else {

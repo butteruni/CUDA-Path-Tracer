@@ -232,13 +232,13 @@ __global__ void pathIntegrator(
     ShadeableIntersection intersection = shadeableIntersections[idx];
     PathSegment& segment = pathSegments[idx];
     if (intersection.t > 0.f) {
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
 	    Material material = dev_scene->materials[intersection.materialId];
         BSDFSample sampler;
         material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
         segment.ray = makeSteppedRay(intersection.point, glm::normalize(sampler.wi));
         if (material.type == MaterialType::Light) {
-            segment.color *= (material.color * material.emittance);
+            segment.radiance += segment.color * (material.color * material.emittance);
 		    segment.remainingBounces = 0;
 	    }
         else {
@@ -340,7 +340,7 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     if (index < nPaths)
     {
         PathSegment iterationPath = iterationPaths[index];
-        image[iterationPath.pixelIndex] += iterationPath.color;
+        image[iterationPath.pixelIndex] += iterationPath.radiance;
     }
 }
 struct IsPathRunning {
@@ -469,14 +469,14 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 			dev_paths,
 			hst_scene->devScene
 			);
-		//misPathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
-		//	iter,
-		//	depth,
-		//	num_paths,
-		//	dev_intersections,
-		//	dev_paths,
-		//	hst_scene->devScene
-		//	);
+		/*misPathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
+			iter,
+			depth,
+			num_paths,
+			dev_intersections,
+			dev_paths,
+			hst_scene->devScene
+			);*/
         checkCUDAError("shading");
         cudaDeviceSynchronize();
         PathSegment* new_end = thrust::stable_partition(

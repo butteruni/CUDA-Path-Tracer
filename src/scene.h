@@ -89,15 +89,16 @@ public:
 
 	GPU bool occlusionAccel(glm::vec3 x, glm::vec3 y) {
 		glm::vec3 dir = y - x;
-		float dist = glm::length(dir) - EPSILON;
+		float dist = glm::length(dir);
 		dir = glm::normalize(dir);
 		Ray r = { x, dir };
 		int cur_node = 0;
-		float min_T = dist;
-		int start = getLinearId(-r.direction);
+		float min_T = dist - EPSILON;
+		int start = 0;
 		while (cur_node != devNumNodes) {
-			AABB& bound = deviceBounds[devlinearNodes[cur_node + cur_node].aabbIndex];
-			if (bound.intersect(r, min_T)) {
+			AABB bound = deviceBounds[devlinearNodes[start + cur_node].aabbIndex];
+			float tmp_t = min_T;
+			if (bound.intersect(r, tmp_t)) {
 				if (devlinearNodes[start + cur_node].primIndex != -1) {
 					int primId = devlinearNodes[start + cur_node].primIndex;
 					glm::vec3 tmp_bary;
