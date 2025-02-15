@@ -51,13 +51,16 @@ static glm::vec3* dev_image = NULL;
 static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
+thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
+thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
-int* dev_material_ids = NULL;
-thrust::device_ptr<int> dev_thrust_material_ids = NULL;
-thrust::device_ptr<PathSegment> dev_thrust_paths;
-thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections;
+int* dev_intersection_material_ids = NULL;
+thrust::device_ptr<int> dev_thrust_isect_material_ids = NULL;
+int* dev_path_material_ids = NULL;
+thrust::device_ptr<int> dev_thrust_path_material_ids = NULL;
+
 void InitDataContainer(GuiDataContainer* imGuiData)
 {
     guiData = imGuiData;
@@ -74,7 +77,7 @@ void pathtraceInit(Scene* scene)
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
-
+    dev_thrust_paths = thrust::device_pointer_cast(dev_paths);
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
@@ -83,12 +86,13 @@ void pathtraceInit(Scene* scene)
 
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
+    dev_thrust_intersections = thrust::device_pointer_cast(dev_intersections);
     // TODO: initialize any extra device memeory you need
-	cudaMalloc(&dev_material_ids, pixelcount * sizeof(int));
-	dev_thrust_material_ids = thrust::device_pointer_cast(dev_material_ids);
-	dev_thrust_paths = thrust::device_pointer_cast(dev_paths);
-	dev_thrust_intersections = thrust::device_pointer_cast(dev_intersections);
+	cudaMalloc(&dev_intersection_material_ids, pixelcount * sizeof(int));
+	dev_thrust_isect_material_ids = thrust::device_pointer_cast(dev_intersection_material_ids);
+    cudaMalloc(&dev_path_material_ids, pixelcount * sizeof(int));
+    dev_thrust_path_material_ids = thrust::device_pointer_cast(dev_path_material_ids);
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -100,7 +104,7 @@ void pathtraceFree()
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
-    cudaFree(dev_material_ids);
+    cudaFree(dev_intersection_material_ids);
     checkCUDAError("pathtraceFree");
 }
 
@@ -170,7 +174,8 @@ __global__ void computeIntersectionsScene(
     int num_paths,
     PathSegment* pathSegments,
     GPUScene* dev_scene,
-    ShadeableIntersection* intersections)
+    ShadeableIntersection* intersections,
+    int *materialIds)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -186,11 +191,20 @@ __global__ void computeIntersectionsScene(
         if (dev_scene->materials[isect.materialId].type == MaterialType::Light) {
             if (depth != 0) {
                 isect.prev = pathSegment.ray.origin;
+                if (RESUFFLE_BY_MATERIAL) {
+                    isect.pdf = pathSegment.pdf;
+                    isect.deltaSample = pathSegment.deltaSample;
+                }
             }
         }
         else {
             isect.dir = -pathSegment.ray.direction;
         }
+        if (RESUFFLE_BY_MATERIAL)
+            materialIds[path_index] = isect.materialId;
+    }
+    if (RESUFFLE_BY_MATERIAL) {
+        materialIds[path_index] = -1;
     }
     intersections[path_index] = isect;
 }
@@ -422,7 +436,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
             num_paths,
             dev_paths,
 			hst_scene->devScene,
-			dev_intersections
+			dev_intersections,
+            dev_intersection_material_ids
 			);
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
@@ -439,18 +454,12 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
         // reshuffle material
         if (RESUFFLE_BY_MATERIAL) {
-            thrust::sort_by_key(
-                thrust::device_pointer_cast(dev_intersections),
-                thrust::device_pointer_cast(dev_intersections + num_paths),
-                thrust::make_zip_iterator(
-                    thrust::make_tuple(
-                        thrust::device_pointer_cast(dev_paths),
-                        thrust::device_pointer_cast(dev_intersections)
-                    )
-                ),
-                sortByMaterial()
-            
-            );
+            cudaMemcpy(dev_path_material_ids, dev_intersection_material_ids, num_paths * sizeof(int), cudaMemcpyDeviceToDevice);
+            thrust::sort_by_key(dev_thrust_isect_material_ids,
+                dev_thrust_isect_material_ids + num_paths, dev_thrust_intersections);
+            thrust::sort_by_key(dev_thrust_path_material_ids,
+                dev_thrust_path_material_ids, dev_thrust_paths);
+
         }
 		pathIntegrator << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,

@@ -142,6 +142,7 @@ void runCuda()
         pathtraceFree();
         scene->toDevice();
         pathtraceInit(scene);
+        std::cout << "start rendering\n";
     }
 
     if (iteration < renderState->iterations)

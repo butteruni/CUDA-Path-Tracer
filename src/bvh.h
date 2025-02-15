@@ -25,13 +25,16 @@ struct AABB {
 	CPUGPU std::string toString() const {
 		return "pmin: " + vec3ToString(pmin) + ", pmax: " + vec3ToString(pmax);
 	}
-	CPUGPU glm::vec3 extend() {
+	CPUGPU glm::vec3 extend() const{
+		if (pmin.x > pmax.x) {
+			return glm::vec3(0.f);
+		}
 		return pmax - pmin;
 	}
-	CPUGPU glm::vec3 center() {
+	CPUGPU glm::vec3 center() const{
 		return 0.5f * (pmin + pmax);
 	}
-	CPUGPU glm::vec3 offset(const glm::vec3& p) {
+	CPUGPU glm::vec3 offset(const glm::vec3& p) const{
 		if (pmin.x > pmax.x) {
 			return p;
 		}
@@ -39,11 +42,11 @@ struct AABB {
 		o /= extend();
 		return o;
 	}
-	CPUGPU float surfaceArea() {
+	CPUGPU float surfaceArea() const{
 		glm::vec3 e = extend();
 		return 2.f * (e.x * e.y + e.y * e.z + e.z * e.x);
 	}
-	CPUGPU int maxExtend() {
+	CPUGPU int maxExtend() const{
 		glm::vec3 e = extend();
 		if (e.x > e.y && e.x > e.z) {
 			return 0;
@@ -55,7 +58,7 @@ struct AABB {
 			return 2;
 		}
 	}
-	CPUGPU bool intersect(const Ray& r, float& tmax) {
+	CPUGPU bool intersect(const Ray& r, float& tmax) const{
 		float t0 = 0.f, t1 = tmax;
 		for (int i = 0; i < 3; i++) {
 			float invD = 1.f / r.direction[i];
@@ -110,15 +113,17 @@ struct Prim {
 };
 enum class SplitMethod {
 	SAH,
-	HLBVH
+	EQUAL,
+	HLBVH,
 };
 
 struct BVHBuilder {
 	static int build(const std::vector<glm::vec3>& vertices, std::vector<AABB>& aabbs,
-		std::vector<LinearBVHNode>& linearNodes, SplitMethod method = SplitMethod::SAH);
+		std::vector<std::vector<LinearBVHNode>>& linearNodes, SplitMethod method = SplitMethod::EQUAL);
 	static int buildTree(const std::vector<glm::vec3> &vertices, std::vector<AABB>& aabbs
 		, std::vector<TreeBVHNode>& nodes);
 	static void SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&nodes, std::vector<AABB>& aabbs);
+	static void EQUALBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>& nodes, std::vector<AABB>& aabbs);
 	static void HLBVHbuild();
-	static void flattenBVH(const std::vector<BVHNodeInfo> &nodes, std::vector<LinearBVHNode>&linearNodes);
+	static void flattenBVH(const std::vector<AABB>& aabbs,const std::vector<BVHNodeInfo> &nodes, std::vector<std::vector<LinearBVHNode>>& linearNodes);
 };

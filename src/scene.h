@@ -94,11 +94,12 @@ public:
 		Ray r = { x, dir };
 		int cur_node = 0;
 		float min_T = dist;
+		int start = getLinearId(-r.direction);
 		while (cur_node != devNumNodes) {
-			AABB& bound = deviceBounds[devlinearNodes[cur_node].aabbIndex];
+			AABB& bound = deviceBounds[devlinearNodes[cur_node + cur_node].aabbIndex];
 			if (bound.intersect(r, min_T)) {
-				if (devlinearNodes[cur_node].primIndex != -1) {
-					int primId = devlinearNodes[cur_node].primIndex;
+				if (devlinearNodes[start + cur_node].primIndex != -1) {
+					int primId = devlinearNodes[start + cur_node].primIndex;
 					glm::vec3 tmp_bary;
 					float t = intersectByIndex(r, primId, tmp_bary);
 					if (t > 0 && t < min_T) {
@@ -108,7 +109,7 @@ public:
 				cur_node++;
 			}
 			else {
-				cur_node = devlinearNodes[cur_node].secondChild;
+				cur_node = devlinearNodes[start + cur_node].secondChild;
 			}
 		}
 		return false;
@@ -159,17 +160,38 @@ public:
 		isect.primitiveId = min_index;
 		updateIntersection(r, isect, bary, min_T);
 	}
+	GPU int getLinearId(const glm::vec3 &dir) {
+		int dim = 0;
+		glm::vec3 absDir = glm::abs(dir);
+		if (absDir.x > absDir.y) {
+			if (absDir.x > absDir.z) {
+				dim = (dir.x > 0 ? 0 : 1);
+			}
+			else {
+				dim = (dir.z > 0 ? 4 : 5);
+			}
+		}
+		else {
+			if (absDir.y > absDir.z) {
+				dim = (dir.y > 0 ? 2 : 3);
+			}
+			else {
+				dim = (dir.z > 0 ? 4 : 5);
+			}
+		}
+		return dim * devNumNodes;
+	}
 	GPU void intersectAccel(const Ray& r, ShadeableIntersection& isect) {
 		float min_T = FLT_MAX;
 		int min_index = -1;
 		glm::vec3 bary;
 		int cur_node = 0;
+		int start = getLinearId(-r.direction);
 		while (cur_node != devNumNodes) {
-
-			AABB& bound = deviceBounds[devlinearNodes[cur_node].aabbIndex];
+			AABB& bound = deviceBounds[devlinearNodes[start + cur_node].aabbIndex];
 			if (bound.intersect(r, min_T)) {
-				if (devlinearNodes[cur_node].primIndex != -1) {
-					int primId = devlinearNodes[cur_node].primIndex;
+				int primId = devlinearNodes[start + cur_node].primIndex;
+				if (primId != -1) {
 					glm::vec3 tmp_bary;
 					float t = intersectByIndex(r, primId, tmp_bary);
 					if (t > 0 && t < min_T) {
@@ -181,7 +203,7 @@ public:
 				cur_node++;
 			}
 			else {
-				cur_node = devlinearNodes[cur_node].secondChild;
+				cur_node = devlinearNodes[start + cur_node].secondChild;
 			}
 		}
 		isect.primitiveId = min_index;
@@ -210,7 +232,7 @@ public:
 	std::vector<Material> materials;
 	std::vector<int> materialIDs;
 	std::vector<AABB> bounds;
-	std::vector<LinearBVHNode> linearNodes;
+	std::vector<std::vector<LinearBVHNode>> linearNodes;
 
 	std::vector<int> lightPrimIds;
 	std::vector<float> lightPower;

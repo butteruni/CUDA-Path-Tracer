@@ -224,16 +224,16 @@ void Scene::toDevice()
     }
 	std::cout << lightPrimIds.size() << " light primitives" << std::endl;
 	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
+
 	lightSampler = DiscreteSampler1D<float>(lightPower);
     hstScene.loadFromScene(*this);
     cudaMalloc(&devScene, sizeof(GPUScene));
     cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+    checkCUDAError("loadscene");
+
 }
 
-void Scene::clearScene() {
-    hstScene.clear();
-    safeCudaFree(devScene);
-}
 
 void GPUScene::loadFromScene(const Scene& scene) {
     cudaDeviceSynchronize();
@@ -257,12 +257,6 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
     checkCUDAError("load material");
 
-	devNumNodes = scene.linearNodes.size();
-    cudaMalloc(&deviceBounds, getVectorByteSize(scene.bounds));
-	cudaMemcpy(deviceBounds, scene.bounds.data(), getVectorByteSize(scene.bounds), cudaMemcpyHostToDevice);
-	cudaMalloc(&devlinearNodes, getVectorByteSize(scene.linearNodes));
-	cudaMemcpy(devlinearNodes, scene.linearNodes.data(), getVectorByteSize(scene.linearNodes), cudaMemcpyHostToDevice);
-	checkCUDAError("load bounds");
 
 	cudaMalloc(&devLightPrimIds, getVectorByteSize(scene.lightPrimIds));
 	cudaMemcpy(devLightPrimIds, scene.lightPrimIds.data(), getVectorByteSize(scene.lightPrimIds), cudaMemcpyHostToDevice);
@@ -275,6 +269,22 @@ void GPUScene::loadFromScene(const Scene& scene) {
     devSumLightPowerInv = 1.f / devSumLightPower;
     checkCUDAError("load Light sample");
 
+	devNumNodes = scene.linearNodes[0].size();
+    cudaMalloc(&deviceBounds, getVectorByteSize(scene.bounds));
+	cudaMemcpy(deviceBounds, scene.bounds.data(), getVectorByteSize(scene.bounds), cudaMemcpyHostToDevice);
+    checkCUDAError("load bounds");
+    std::vector<LinearBVHNode> flattened;
+    flattened.clear();
+    for (auto& nodes : scene.linearNodes) {
+        for (auto& node : nodes) {
+            flattened.push_back(node);
+        }
+    }
+    cudaMalloc(&devlinearNodes, getVectorByteSize(flattened));
+    checkCUDAError("malloc linear");
+
+    cudaMemcpy(devlinearNodes, flattened.data(), getVectorByteSize(flattened), cudaMemcpyHostToDevice);
+	checkCUDAError("load linear");
 }
 
 void GPUScene::clear() {
@@ -283,4 +293,8 @@ void GPUScene::clear() {
     safeCudaFree(uvs);
     safeCudaFree(materials);
     safeCudaFree(materialIDs);
+}
+void Scene::clearScene() {
+    hstScene.clear();
+    safeCudaFree(devScene);
 }

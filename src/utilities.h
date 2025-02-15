@@ -14,7 +14,7 @@
 #include <cuda_runtime.h>
 #include "macro.h"
 #define ERRORCHECK 1
-#define RESUFFLE_BY_MATERIAL 0
+
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 /**
@@ -154,4 +154,8 @@ CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, co
 CPUGPU inline float powerHeuristic(float f, float g) {
 	float f2 = f * f;
 	return f2 / (f2 + g * g);
+}
+template<typename T>
+CPUGPU bool between(const T& x, const T& min, const T& max) {
+    return x >= min && x <= max;
 }
