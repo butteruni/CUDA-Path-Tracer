@@ -188,8 +188,9 @@ public:
 		int cur_node = 0;
 		int start = getLinearId(-r.direction);
 		while (cur_node != devNumNodes) {
-			AABB& bound = deviceBounds[devlinearNodes[start + cur_node].aabbIndex];
-			if (bound.intersect(r, min_T)) {
+			AABB bound = deviceBounds[devlinearNodes[start + cur_node].aabbIndex];
+			float t = min_T;
+			if (bound.intersect(r, t)) {
 				int primId = devlinearNodes[start + cur_node].primIndex;
 				if (primId != -1) {
 					glm::vec3 tmp_bary;

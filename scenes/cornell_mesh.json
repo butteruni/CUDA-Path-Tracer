@@ -33,8 +33,8 @@
         "dielectric_white":
         {
             "TYPE":"Dielectric",
-            "RGB":[0.98, 0.98, 0.98],
-            "IOR":1.333
+            "RGB":[1, 1, 1],
+            "IOR":1.5
         }
     },
     "Camera":
@@ -105,14 +105,15 @@
             "TRANS":[5.0,5.0,0.0],
             "ROTAT":[0.0,0.0,90.0],
             "SCALE":[5, 5, 5]
-        },{
-            "name" : "sphere",
-            "TYPE" : "mesh",
-            "MESH" : "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\sphere.obj",
-            "MATERIAL" : "conductor_white",
-            "TRANS" : [-1, 4, -1],
-            "ROTAT" : [30.0, 60.0, 0.0],
-            "SCALE" : [2, 2, 2]
+        },
+        {
+            "name": "sphere",
+            "TYPE":"mesh",
+            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\stanford-bunny.obj",
+            "MATERIAL":"conductor_white",
+            "TRANS":[0.0,4.0,0.0],
+            "ROTAT":[0.0,0.0,0.0],
+            "SCALE":[1.5,1.5,1.5]
         }
     ]
 }

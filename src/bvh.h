@@ -1,6 +1,7 @@
 #pragma once
 // ref: https://pbr-book.org/4ed/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies
 #include <glm/glm.hpp>
+#include <thrust/swap.h>
 #include "sceneStructs.h"
 #include "macro.h"
 #include "utilities.h"
@@ -59,20 +60,30 @@ struct AABB {
 		}
 	}
 	CPUGPU bool intersect(const Ray& r, float& tmax) const{
-		float t0 = 0.f, t1 = tmax;
-		for (int i = 0; i < 3; i++) {
-			float invD = 1.f / r.direction[i];
-			float tNear = (pmin[i] - r.origin[i]) * invD;
-			float tFar = (pmax[i] - r.origin[i]) * invD;
-			if (tNear > tFar) {
-				float tmp = tNear;
-				tNear = tFar;
-				tFar = tmp;
+		glm::vec3 o = r.origin;
+		const glm::vec3 invDir = 1.0f / r.direction;
+		float tEnter = FLT_MIN;
+		float tExit = tmax;
+
+		for (int i = 0; i < 3; ++i)
+		{
+			float tMax;
+			float tMin;
+			if (r.direction[i] == 0)
+			{
+				if (o[i] < pmin[i] || o[i] > pmax[i]) return false;
 			}
-			if (tNear > t1 || tFar < t0) return false;
+			else
+			{
+				tMax = (pmax[i] - o[i]) * invDir[i];
+				tMin = (pmin[i] - o[i]) * invDir[i];
+				if (r.direction[i] < 0) thrust::swap(tMax, tMin);
+				tEnter = tMin > tEnter ? tMin : tEnter;
+				tExit = tMax < tExit ? tMax : tExit;
+			}
 		}
-		tmax = t1;
-		return true;
+		tmax = tEnter;
+		return tEnter <= tExit && tExit > 0;
 	}
 	AABB Union(const AABB &a, const AABB &b) {
 		return AABB(glm::min(a.pmin, b.pmin), glm::max(a.pmax, b.pmax));

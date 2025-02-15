@@ -223,7 +223,7 @@ void Scene::toDevice()
         }
     }
 	std::cout << lightPrimIds.size() << " light primitives" << std::endl;
-	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
+	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::EQUAL);
 
 	lightSampler = DiscreteSampler1D<float>(lightPower);
     hstScene.loadFromScene(*this);
