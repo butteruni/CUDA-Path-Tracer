@@ -27,6 +27,7 @@ struct BSDFSample {
         wi(wi), pdf(pdf), flags(flags), bsdf(bsdf) {}
 };
 CPUGPU inline float fresnelSchlick(float cosTheta, float f0) {
+	f0 = (1.f - f0) / (1.f + f0);
 	return f0 + (1.f - f0) * glm::pow(1.f - cosTheta, 5.f);
 }
 CPUGPU inline glm::vec3 fresnelSchlick(float cosTheta, glm::vec3 f0) {
@@ -45,9 +46,9 @@ CPUGPU inline float fresnelDielectric(float cosThetaI, float eta) {
 		return 1.f;
 	}
 	float cosThetaT = glm::sqrt(glm::max(0.f, 1.f - sinThetaT * sinThetaT));
-	float Rparl = ((eta * cosThetaI) - (cosThetaT)) / ((eta * cosThetaI) + (cosThetaT));
-	float Rperp = ((cosThetaI)-(eta * cosThetaT)) / ((cosThetaI)+(eta * cosThetaT));
-	return (Rparl * Rparl + Rperp * Rperp) / 2.f;
+	float Rparl = (eta * cosThetaI - cosThetaT) / (eta * cosThetaI + cosThetaT);
+	float Rperp = (cosThetaI - eta * cosThetaT) / (cosThetaI + eta * cosThetaT);
+	return (Rparl * Rparl + Rperp * Rperp) * 0.5f;
 }
 CPUGPU inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, glm::vec3& wt) {
 	float cosThetaI = glm::dot(n, wi);
@@ -61,6 +62,9 @@ CPUGPU inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, g
 		return false;
 	}
 	float cosThetaT = glm::sqrt(1.f - sin2ThetaT);
+	if (cosThetaI < 0) {
+		cosThetaT *= -1;
+	}
 	wt = glm::normalize(-wi / eta + (cosThetaI / eta - cosThetaT) * n);
 	return true;
 }
@@ -161,7 +165,8 @@ struct Material
 		return 0.f;
 	}
 	CPUGPU void DielectricSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
-		float reflection_prob = fresnelSchlick(glm::dot(n, wo), indexOfRefraction);
+		float reflection_prob = fresnelDielectric(glm::dot(n, wo), indexOfRefraction);
+
 		if (r.z < reflection_prob) {
 			sample.wi = glm::reflect(-wo, n);
 			sample.flags = BxDFFlags::SpecularReflection;

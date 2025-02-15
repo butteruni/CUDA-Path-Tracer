@@ -39,7 +39,9 @@ struct Ray
         return origin + t * direction;
     }
 };
-
+CPUGPU inline Ray makeSteppedRay(glm::vec3& p, glm::vec3& dir) {
+    return Ray{ p + EPSILON * dir, dir };
+}
 struct Camera
 {
     glm::ivec2 resolution;
