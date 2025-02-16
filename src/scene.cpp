@@ -196,6 +196,7 @@ void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
 
 void Scene::toDevice()
 {
+    int primId = 0;
     for (auto& geom : geoms) {
         if (geom.type != MESH)
             continue;
@@ -214,11 +215,12 @@ void Scene::toDevice()
 				glm::vec3 v2 = meshData.vertices[i];
 				float area = triangleArea(v0, v1, v2);
 				float power = powerUnit * area;
-				lightPrimIds.push_back(meshData.vertices.size() / 3);
+				lightPrimIds.push_back(primId);
 				lightUnitRadiance.push_back(radianceUnit);
 				lightPower.push_back(power);
 				sumLightPower += power;
 				numLightPrim++;
+                primId++;
 			}
         }
     }
@@ -232,7 +234,16 @@ void Scene::toDevice()
     cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     checkCUDAError("loadscene");
-
+	meshData.normals.clear();
+	meshData.uvs.clear();
+	meshData.vertices.clear();
+    lightPrimIds.clear();
+	lightUnitRadiance.clear();
+	lightPower.clear();
+    lightSampler.binomDistribution.clear();
+	sumLightPower = 0;
+	numLightPrim = 0;
+    cudaDeviceSynchronize();
 }
 
 
@@ -268,6 +279,7 @@ void GPUScene::loadFromScene(const Scene& scene) {
     devNumLightPrim = scene.numLightPrim;
 	devSumLightPower = scene.sumLightPower;
     devSumLightPowerInv = 1.f / devSumLightPower;
+    printf("lightSumInv: %f\n", devSumLightPowerInv);
     checkCUDAError("load Light sample");
 
 	devNumNodes = scene.linearNodes[0].size();
@@ -294,6 +306,11 @@ void GPUScene::clear() {
     safeCudaFree(uvs);
     safeCudaFree(materials);
     safeCudaFree(materialIDs);
+	safeCudaFree(deviceBounds);
+	safeCudaFree(devlinearNodes);
+	safeCudaFree(devLightPrimIds);
+	safeCudaFree(devLightUnitRadiance);
+	safeCudaFree(devLightDistribution);
 }
 void Scene::clearScene() {
     hstScene.clear();

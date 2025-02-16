@@ -112,11 +112,11 @@ GPU inline glm::vec3 sample3D(thrust::default_random_engine& rng) {
 GPU inline glm::vec4 sample4D(thrust::default_random_engine& rng) {
 	return glm::vec4(sample3D(rng), sample1D(rng));
 }
-CPUGPU inline glm::vec3 sampleWithinTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec2& sample) {
-	glm::vec2 uv = glm::sqrt(sample);
-	uv.y = 1.f - uv.x;
-	uv *= 1.f - uv.y;
-	return v0 * uv.x + v1 * uv.y + v2 * (1.f - uv.x - uv.y);
+CPUGPU inline glm::vec3 sampleBary(const glm::vec2& sample) {
+	glm::vec2 r = glm::sqrt(sample);
+	float u = 1.f - r.y;
+	float v = sample.x * r.y;
+	return glm::vec3(1.f - u - v, u, v);
 }
 // use for multiple importance sampling
 template <typename T>
@@ -174,6 +174,9 @@ public:
 			auto& l = lessThanOne.top();
 			lessThanOne.pop();
 			binomDistribution[l.failId] = l;
+		}
+		for (int i = 0; i < binomDistribution.size(); ++i) {
+			std::cout << binomDistribution[i].prob << " " << binomDistribution[i].failId << '\n';
 		}
 	}
 	int sample(float u, float v) {

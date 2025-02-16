@@ -149,11 +149,11 @@ CPUGPU inline float luminance(const glm::vec3& color) {
 CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, const glm::vec3& normalY) {
     glm::vec3 yTox = x - y;
 	glm::vec3 dir = glm::normalize(yTox);
-	return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
+    return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
 }
 CPUGPU inline float powerHeuristic(float f, float g) {
 	float f2 = f * f;
-	return f2 / (f2 + g * g);
+    return f2 / (f2 + g * g);
 }
 template<typename T>
 CPUGPU bool between(const T& x, const T& min, const T& max) {

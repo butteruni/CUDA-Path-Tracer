@@ -128,11 +128,11 @@ public:
 		DF<float> light = devLightDistribution[passId];
 		int lightId = (random.y < light.prob) ? light.failId : passId;
 		int lightPrimId = devLightPrimIds[lightId];
-		glm::vec3 v0 = vertices[lightPrimId * 3];
+		glm::vec3 v0 = vertices[lightPrimId * 3 + 0];
 		glm::vec3 v1 = vertices[lightPrimId * 3 + 1];
 		glm::vec3 v2 = vertices[lightPrimId * 3 + 2];
-		glm::vec3 samplePoint = sampleWithinTriangle(v0, v1, v2, glm::vec2(random.z, random.w));
-
+		glm::vec3 bary = sampleBary(glm::vec2(random.z, random.w));
+		glm::vec3 samplePoint = v0 * bary.x + v1 * bary.y + v2 * bary.z;
 		bool visible = !occlusionTest(pos, samplePoint);
 		if (!visible) {
 			return -1;
@@ -142,7 +142,7 @@ public:
 		
 		radiance = devLightUnitRadiance[lightId];
 		wi = glm::normalize(lightdir);
-		return luminance(radiance) / devSumLightPower * computeSolidAngle(pos, samplePoint, lightNormal);
+		return luminance(radiance) * devSumLightPowerInv * computeSolidAngle(pos, samplePoint, lightNormal);
 	}
 
 	GPU void intersectNaive(const Ray& r, ShadeableIntersection& isect) {
