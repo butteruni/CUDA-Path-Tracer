@@ -36,6 +36,10 @@ CUDA Path Tracer
 
 ​	69642 triangles rendered in 2.4fps(about 400ms per frame)
 
+- MIS(multi-importance sampling)
+
+  ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/mis_diffuse.png?raw=true)
+
 ## Todo Lists:
 
 - environment map
