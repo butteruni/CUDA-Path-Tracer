@@ -74,9 +74,9 @@ public:
 
 	GPU bool occlusionNaive(glm::vec3 x, glm::vec3 y) {
 		glm::vec3 dir = y - x;
-		float dist = glm::length(dir);
+		float dist = glm::length(dir) - EPSILON;
 		dir = glm::normalize(dir);
-		Ray r = { x, dir };
+		Ray r = { x + dir * 1e-5f, dir };
 		for (int i = 0; i * 3 < verticesSize; i++) {
 			glm::vec3 bary;
 			float t = intersectByIndex(r, i, bary);
@@ -89,12 +89,12 @@ public:
 
 	GPU bool occlusionAccel(glm::vec3 x, glm::vec3 y) {
 		glm::vec3 dir = y - x;
-		float dist = glm::length(dir);
+		float dist = glm::length(dir) - EPSILON;
 		dir = glm::normalize(dir);
-		Ray r = { x, dir };
+		Ray r = { x + dir * 1e-5f, dir };
 		int cur_node = 0;
-		float min_T = dist - EPSILON;
-		int start = 0;
+		float min_T = dist;
+		int start = getLinearId(-r.direction);
 		while (cur_node != devNumNodes) {
 			AABB bound = deviceBounds[devlinearNodes[start + cur_node].aabbIndex];
 			float tmp_t = min_T;
@@ -131,14 +131,16 @@ public:
 		glm::vec3 v0 = vertices[lightPrimId * 3 + 0];
 		glm::vec3 v1 = vertices[lightPrimId * 3 + 1];
 		glm::vec3 v2 = vertices[lightPrimId * 3 + 2];
-		glm::vec3 bary = sampleBary(glm::vec2(random.z, random.w));
-		glm::vec3 samplePoint = v0 * bary.x + v1 * bary.y + v2 * bary.z;
+		float r = glm::sqrt(random.z);
+		float u = 1.f - r;
+		float v = random.w * r;
+		glm::vec3 samplePoint = (1 - u - v) * v0 + u * v1 + v * v2;
 		bool visible = !occlusionTest(pos, samplePoint);
 		if (!visible) {
 			return -1;
 		}
 		glm::vec3 lightNormal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-		glm::vec3 lightdir = samplePoint - pos;
+		glm::vec3 lightdir = pos - samplePoint;
 		
 		radiance = devLightUnitRadiance[lightId];
 		wi = glm::normalize(lightdir);

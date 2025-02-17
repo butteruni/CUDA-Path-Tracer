@@ -108,7 +108,7 @@ struct Material
 		return color * INV_PI;
 	}
 	CPUGPU float DiffusePdf(const glm::vec3& n, const glm::vec3& wi) {
-		return fmax(0.f, glm::dot(n, wi)) * INV_PI;
+		return glm::max(0.f, glm::dot(n, wi)) * INV_PI;
 	}
 	CPUGPU void DiffuseSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
 		sample.wi = squareToHemiSphereCos(n, glm::vec2(r.x, r.y));

@@ -254,7 +254,6 @@ __global__ void pathIntegrator(
         }
     }
     else {
-		segment.radiance = glm::vec3(0.0f);
 		segment.remainingBounces = 0;
     }
 	segment.radiance += sumRadiance;
@@ -315,8 +314,8 @@ __global__ void misPathIntegrator(
                         glm::vec3 bsdf = material.BSDF(intersection.surfaceNormal, intersection.dir, wi);
                         float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.dir, wi);
                         float weight = powerHeuristic(lightPdf, bsdfPdf);
-                        sumRadiance += segment.color * bsdf * 
-                            radiance * glm::abs(glm::dot(intersection.surfaceNormal, wi)) * weight;
+                        sumRadiance += segment.color * bsdf *
+                            radiance * glm::max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
                     }
                 }
                 bool isDelta = sampler.flags & BxDFFlags::Specular;
@@ -332,7 +331,6 @@ __global__ void misPathIntegrator(
         }
     }
     else {
-        segment.radiance = glm::vec3(0.0f);
         segment.remainingBounces = 0;
     }
 	segment.radiance += sumRadiance;
@@ -482,7 +480,6 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 			dev_paths,
 			hst_scene->devScene
 			);
-        depth++;
         checkCUDAError("shading");
         cudaDeviceSynchronize();
         PathSegment* new_end = thrust::stable_partition(
@@ -500,6 +497,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
         {
             guiData->TracedDepth = depth;
         }
+        depth++;
     }
 
     // Assemble this iteration and apply it to the image
