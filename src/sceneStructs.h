@@ -40,7 +40,7 @@ struct Ray
     }
 };
 CPUGPU inline Ray makeSteppedRay(glm::vec3& p, glm::vec3& dir) {
-    return Ray{ p + EPSILON * dir, dir };
+    return Ray{ p + 1e-5f * dir, dir };
 }
 struct Camera
 {

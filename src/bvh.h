@@ -7,7 +7,7 @@
 #include "utilities.h"
 struct AABB {
 	glm::vec3 pmin = glm::vec3(FLT_MAX);
-	glm::vec3 pmax = glm::vec3(FLT_MIN);
+	glm::vec3 pmax = glm::vec3(-FLT_MAX);
 	AABB() = default;
 	CPUGPU AABB(const glm::vec3& p) : pmin(p), pmax(p) {}
 	CPUGPU AABB(const glm::vec3& pmin, const glm::vec3& pmax) : pmin(pmin), pmax(pmax) {}
@@ -49,15 +49,10 @@ struct AABB {
 	}
 	CPUGPU int maxExtend() const{
 		glm::vec3 e = extend();
-		if (e.x > e.y && e.x > e.z) {
-			return 0;
+		if (e.x < e.y) {
+			return e.y > e.z ? 1 : 2;
 		}
-		else if (e.y > e.z) {
-			return 1;
-		}
-		else {
-			return 2;
-		}
+		return e.x > e.z ? 0 : 2;
 	}
 	CPUGPU bool intersect(const Ray& r, float& tmax) const{
 		glm::vec3 o = r.origin;

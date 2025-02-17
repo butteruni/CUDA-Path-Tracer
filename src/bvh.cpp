@@ -9,8 +9,8 @@ int BVHBuilder::build(const std::vector<glm::vec3>& vertices, std::vector<AABB>&
 	std::vector<Prim> prims(faceSize);
 	for (int i = 0; i < faceSize; i++) {
 		prims[i] = { i, AABB(vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]) };
-		prims[i].aabb.merge(prims[i].aabb.pmin - glm::vec3(EPSILON));
-		prims[i].aabb.merge(prims[i].aabb.pmax + glm::vec3(EPSILON));
+		//prims[i].aabb.merge(prims[i].aabb.pmin - glm::vec3(EPSILON));
+		//prims[i].aabb.merge(prims[i].aabb.pmax + glm::vec3(EPSILON));
 
 	}
 	std::vector<BVHNodeInfo> nodeInfos(maxBVHSize);
@@ -109,7 +109,7 @@ void BVHBuilder::SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&
 		}
 		else {
 
-			const int bucket_size = 16;
+			const int bucket_size = 12;
 			BucketInfo buckets[bucket_size];
 			for (int i = info.left; i <= info.right; i++) {
 				int b = bucket_size * centroid.offset(prims[i].aabb.center())[splitAxis];
@@ -131,7 +131,7 @@ void BVHBuilder::SAHBVHbuild(std::vector<Prim>& prims, std::vector<BVHNodeInfo>&
 				countAbove += buckets[i + 1].count;
 				costs[i] += countAbove * boundAbove.surfaceArea();
 			}
-			int minCostSplitBucket = -1;
+			int minCostSplitBucket = 0;
 			float minCost = FLT_MAX;
 			for (int i = 0; i < nSplits; ++i) {
 				if (costs[i] < minCost) {
