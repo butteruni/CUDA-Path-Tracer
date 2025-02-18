@@ -232,7 +232,7 @@ __global__ void pathIntegrator(
 	glm::vec3 sumRadiance(0.f);
     if (intersection.t > 0.f) {
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-	    Material material = dev_scene->materials[intersection.materialId];
+	    Material material = dev_scene->getIntersectionMaterial(intersection);
         BSDFSample sampler;
         material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
         segment.ray = makeSteppedRay(intersection.point, glm::normalize(sampler.wi));
@@ -275,7 +275,7 @@ __global__ void misPathIntegrator(
     PathSegment& segment = pathSegments[idx];
     if (intersection.t > 0.f) {
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-        Material material = dev_scene->materials[intersection.materialId];
+		Material material = dev_scene->getIntersectionMaterial(intersection);
         BSDFSample sampler;
         material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
         segment.ray = makeSteppedRay(intersection.point, glm::normalize(sampler.wi));
@@ -315,7 +315,7 @@ __global__ void misPathIntegrator(
                         float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.dir, wi);
                         float weight = powerHeuristic(lightPdf, bsdfPdf);
                         sumRadiance += segment.color * bsdf *
-                            radiance * glm::max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
+                            radiance * glm::abs(glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
                     }
                 }
                 bool isDelta = sampler.flags & BxDFFlags::Specular;

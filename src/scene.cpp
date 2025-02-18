@@ -39,32 +39,37 @@ void Scene::loadFromJSON(const std::string& jsonName)
         // TODO: handle materials loading differently
         if (p["TYPE"] == "Diffuse")
         {
-            const auto& col = p["RGB"];
-            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
 			newMaterial.type = Lambertian;
         }
         else if (p["TYPE"] == "Emitting")
         {
-            const auto& col = p["RGB"];
-            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
             newMaterial.emittance = p["EMITTANCE"];
 			newMaterial.type = Light;
         }
         else if (p["TYPE"] == "Conductor")
         {
-            const auto& col = p["RGB"];
 			newMaterial.roughness = p["ROUGHNESS"];
 			newMaterial.metallic = p["METALLIC"];
-            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
 			newMaterial.type = Conductor;
 		}
 		else if (p["TYPE"] == "Dielectric")
 		{
 			newMaterial.indexOfRefraction = p["IOR"];
-			const auto& col = p["RGB"];
-			newMaterial.color = glm::vec3(col[0], col[1], col[2]);
-            newMaterial.specular.color = glm::vec3(1.0f);
 			newMaterial.type = Dielectric;
+		}
+        const auto& col = p["RGB"];
+        if (col.size() > 2) {
+            newMaterial.color = glm::vec3(col[0], col[1], col[2]);
+            newMaterial.colorTextureId = -1;
+		}
+		else {
+            if (col.is_string()) {
+                newMaterial.colorTextureId = getTextureIndex(col);
+            }
+            else {
+				std::cout << "illegal color format" << col << std::endl;
+                exit(-1);
+            }
 		}
         MatNameToID[name] = materials.size();
         materials.emplace_back(newMaterial);
@@ -138,6 +143,11 @@ void Scene::loadFromJSON(const std::string& jsonName)
 
 void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 {
+    if (meshMap.find(meshName) != meshMap.end()) {
+		dst_data.meshData = meshMap[meshName];
+        std::cout << "Loading mesh from mesh Map\n";
+		return;
+    }
     dst_data.meshData = new MeshData();
 	std::cerr << "Loading mesh from " << meshName << std::endl;
 	if (meshName.substr(meshName.find_last_of('.')) == ".obj")
@@ -148,6 +158,28 @@ void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 		cout << "Couldn't read mesh from " << meshName << endl;
 		exit(-1);
     }
+	meshMap[meshName] = dst_data.meshData;
+}
+
+Image* Scene::loadTexture(const std::string& textureName) {
+	if (textureMap.find(textureName) != textureMap.end()) {
+		return textureMap[textureName];
+	}
+	Image* texture = new Image(textureName);
+	textureMap[textureName] = texture;
+	textureIds[textureName] = textures.size();
+	textures.push_back(texture);
+	return texture;
+}
+
+int Scene::getTextureIndex(const std::string& textureName) {
+    if (textureIds.find(textureName) != textureIds.end()) {
+        return textureIds[textureName];
+    }
+    int id = textureIds.size();
+    Image* texture = loadTexture(textureName);
+	textureIds[textureName] = id;
+	return id;
 }
 
 void Scene::loadMeshFromObj(const std::string& meshName, MeshData* dst_data) {
@@ -251,6 +283,8 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaDeviceSynchronize();
     verticesSize = scene.meshData.vertices.size();
 
+
+
     cudaMalloc(&vertices, getVectorByteSize(scene.meshData.vertices));
     cudaMemcpy(vertices, scene.meshData.vertices.data(), getVectorByteSize(scene.meshData.vertices), cudaMemcpyHostToDevice);
 
@@ -268,6 +302,22 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaMalloc(&materialIDs, getVectorByteSize(scene.materialIDs));
     cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
     checkCUDAError("load material");
+
+    int textureSize = 0;
+	std::vector<GPUImage> devTextures;
+	for (auto& texture : scene.textures) {
+		textureSize += texture->getSize();
+	}
+	cudaMalloc(&texturePixels, textureSize);
+    int offset = 0;
+	for (auto& texture : scene.textures) {
+		cudaMemcpy(texturePixels, texture->pixels, texture->getSize(), cudaMemcpyHostToDevice);
+		devTextures.push_back(GPUImage(texture, texturePixels + offset));
+        offset += texture->getSize() / sizeof(glm::vec3);
+	}
+	cudaMalloc(&textures, getVectorByteSize(devTextures));
+	cudaMemcpy(textures, devTextures.data(), getVectorByteSize(devTextures), cudaMemcpyHostToDevice);
+	checkCUDAError("load texture");
 
 
 	cudaMalloc(&devLightPrimIds, getVectorByteSize(scene.lightPrimIds));

@@ -100,6 +100,7 @@ struct Material
         float exponent;
         glm::vec3 color;
     } specular;
+	int colorTextureId;
     float roughness;
     float indexOfRefraction;
     float emittance;
