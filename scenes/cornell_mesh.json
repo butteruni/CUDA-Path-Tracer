@@ -60,7 +60,7 @@
         {
             "name": "light",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"light",
             "TRANS":[0.0,9.98,0.0],
             "ROTAT":[0.0,0.0,0.0],
@@ -69,7 +69,7 @@
         {
             "name": "back",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"diffuse_white",
             "TRANS":[0.0,5.0,-5.0],
             "ROTAT":[90.0,0.0,0.0],
@@ -78,7 +78,7 @@
         {
             "name": "floor",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"diffuse_white",
             "TRANS":[0.0,0.0,0.0],
             "ROTAT":[0.1,0,0],
@@ -87,7 +87,7 @@
         {
             "name": "top",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"diffuse_white",
             "TRANS":[0.0,10.0,0.0],
             "ROTAT":[180,0.0,0.0],
@@ -96,7 +96,7 @@
         {
             "name": "left",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"diffuse_red",
             "TRANS":[-5.0,5.0,0.0],
             "ROTAT":[0.0,0.0,-90.0],
@@ -105,7 +105,7 @@
         {
             "name": "right",
             "TYPE":"mesh",
-            "MESH": "D:\\Github\\courses\\Project3-CUDA-Path-Tracer\\scenes\\models\\cornellbox\\square.obj",
+            "MESH": "D:\\Github\\self_repos\\CUDA-Path-Tracer\\scenes\\models\\square.obj",
             "MATERIAL":"diffuse_green",
             "TRANS":[5.0,5.0,0.0],
             "ROTAT":[0.0,0.0,90.0],

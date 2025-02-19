@@ -23,6 +23,7 @@ public:
 	Material* materials = nullptr;
 	int* materialIDs = nullptr;
 	int verticesSize = 0;
+	GPUImage* devEnvTexture = nullptr;
 	glm::vec3* texturePixels = nullptr;
 	GPUImage* textures = nullptr;
 	AABB* deviceBounds = nullptr;
@@ -30,7 +31,8 @@ public:
 	int devNumNodes = 0;
 	int* devLightPrimIds = nullptr;
 	glm::vec3* devLightUnitRadiance = nullptr;
-	DF<float>* devLightDistribution;
+	GPUDiscreteSampler1D<float> devlightSampler;
+	GPUDiscreteSampler1D<float> devEnvSampler;
 	int devNumLightPrim = 0;
 	float devSumLightPower = 0;
 	float devSumLightPowerInv = 0;
@@ -129,11 +131,27 @@ public:
 		else
 			return occlusionNaive(x, y);
 	}
-
+	GPU float envLightPdf(const glm::vec3 radiance) {
+		return luminance(radiance) * devSumLightPowerInv * devEnvTexture->xSize * devEnvTexture->ySize * INV_PI * INV_PI * 0.5f;
+	}
+	GPU float sampleEnvLight(glm::vec3 pos, glm::vec2 random, glm::vec3& radiance, glm::vec3& wi) {
+		int pixelId = devEnvSampler.sample(random.x, random.y);
+		int y = pixelId / devEnvTexture->xSize;
+		int x = pixelId % devEnvTexture->xSize;
+		radiance = devEnvTexture->pixels[pixelId];
+		wi = UVtoDir(glm::vec2((0.5f + x) / devEnvTexture->xSize, (0.5 + y) / devEnvTexture->ySize));
+		bool visible = !occlusionTest(pos, pos + wi * 1e8f);
+		if (!visible) {
+			return -1;
+		}
+		return envLightPdf(radiance);
+	}
 	GPU float sampleDirectLight(glm::vec3 pos, glm::vec4 random, glm::vec3 &radiance, glm::vec3 &wi) {
-		int passId = int(float(devNumLightPrim) * random.x);
-		DF<float> light = devLightDistribution[passId];
-		int lightId = (random.y < light.prob) ? light.failId : passId;
+		
+		int lightId = devlightSampler.sample(random.x, random.y);
+		if (lightId == devlightSampler.size - 1 && devEnvSampler.size != 0) {
+			return sampleEnvLight(pos, glm::vec2(random.z, random.w), radiance, wi);
+		}
 		int lightPrimId = devLightPrimIds[lightId];
 		glm::vec3 v0 = vertices[lightPrimId * 3 + 0];
 		glm::vec3 v1 = vertices[lightPrimId * 3 + 1];
@@ -236,6 +254,7 @@ private:
 	void loadMesh(const std::string& meshName, Geom &dst_data);
 	Image* loadTexture(const std::string& textureName);
 	int getTextureIndex(const std::string& textureName);
+	void buildSampler();
 public:
     Scene(string filename);
     ~Scene();
@@ -257,6 +276,9 @@ public:
 	std::map<std::string, MeshData*> meshMap;
 	std::map<std::string, Image*> textureMap;
 	std::map<std::string, int> textureIds;
+	int envTextureId = -1;
+	DiscreteSampler1D<float> envSampler;
+	
 	MeshData meshData;
 	RenderState state;
 	GPUScene hstScene;

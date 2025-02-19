@@ -151,6 +151,16 @@ CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, co
 	glm::vec3 dir = glm::normalize(yTox);
     return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
 }
+CPUGPU inline glm::vec2 DirToUV(const glm::vec3& dir) {
+    float phi = glm::atan(dir.z, dir.x);
+    float u = (phi + PI) * INV_TWO_PI;
+	float theta = glm::acos(dir.y);
+	return glm::vec2(u, theta * INV_PI);
+}
+CPUGPU inline glm::vec3 UVtoDir(glm::vec2 uv) {
+    uv *= glm::vec2(TWO_PI, PI);
+	return glm::vec3(glm::sin(uv.y) * glm::cos(uv.x), glm::cos(uv.y), glm::sin(uv.y) * glm::sin(uv.x));
+}
 CPUGPU inline float powerHeuristic(float f, float g) {
 	float f2 = f * f;
     return f2 / (f2 + g * g);

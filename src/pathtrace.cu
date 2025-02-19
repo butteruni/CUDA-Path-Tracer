@@ -288,7 +288,8 @@ __global__ void misPathIntegrator(
 				sumRadiance += segment.color * radiance;
             }
             else {
-                float lightPdf = luminance(radiance) * dev_scene->devSumLightPowerInv *
+                float lightPdf = luminance(radiance) * dev_scene->devSumLightPowerInv * TWO_PI 
+                    * dev_scene->getPrimitiveArea(intersection.primitiveId) *
                     computeSolidAngle(intersection.prev, intersection.point, intersection.surfaceNormal);
                 float bsdfPdf = segment.pdf;
                 float weight = powerHeuristic(bsdfPdf, lightPdf);
@@ -315,7 +316,7 @@ __global__ void misPathIntegrator(
                         float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.dir, wi);
                         float weight = powerHeuristic(lightPdf, bsdfPdf);
                         sumRadiance += segment.color * bsdf *
-                            radiance * glm::abs(glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
+                            radiance * glm::max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
                     }
                 }
                 bool isDelta = sampler.flags & BxDFFlags::Specular;
@@ -331,6 +332,21 @@ __global__ void misPathIntegrator(
         }
     }
     else {
+        // sum env map
+        if (dev_scene->devEnvTexture != nullptr) {
+            glm::vec3 w = segment.ray.direction;
+            glm::vec2 uv = DirToUV(w);
+            glm::vec3 envlight = dev_scene->devEnvTexture->linearSample(uv.x, uv.y);
+            glm::vec3 radiance = envlight * segment.color;
+            if (depth == 0) {
+				sumRadiance += radiance;
+            }
+            else {
+                float lightweight = dev_scene->envLightPdf(radiance);
+				float weight = segment.deltaSample ? 1.f : powerHeuristic(segment.pdf, lightweight);
+				sumRadiance += radiance * weight;
+            }
+        }
         segment.remainingBounces = 0;
     }
 	segment.radiance += sumRadiance;

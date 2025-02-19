@@ -130,10 +130,11 @@ class DiscreteSampler1D {
 public:
 	using DistributionT = DF<T>;
 	std::vector<DistributionT> binomDistribution;
+	float sum = 0;
 	DiscreteSampler1D() = default;
 	DiscreteSampler1D(std::vector<T> distribution) {
+		sum = 0;
 		binomDistribution.resize(distribution.size());
-		T sum = 0;
 		for (int i = 0; i < distribution.size(); i++) {
 			sum += distribution[i];
 		}
@@ -175,12 +176,36 @@ public:
 			lessThanOne.pop();
 			binomDistribution[l.failId] = l;
 		}
-		for (int i = 0; i < binomDistribution.size(); ++i) {
-			std::cout << binomDistribution[i].prob << " " << binomDistribution[i].failId << '\n';
-		}
+		std::cout << "sum: " << sum << '\n';
 	}
 	int sample(float u, float v) {
 		int idx = int(float(binomDistribution.size()) * u);
 		return v < binomDistribution[idx].prob ? idx : binomDistribution[idx].failId;
+	}
+	void clear() {
+		binomDistribution.clear();
+		sum = 0;
+	}
+};
+
+template <typename T>
+class GPUDiscreteSampler1D {
+public:
+	using DistributionT = DF<T>;
+	DistributionT* binomDistribution;
+	int size = 0;
+	void loadFromHost(const DiscreteSampler1D<T>& sampler) {
+		size = sampler.binomDistribution.size();
+		cudaMalloc(&binomDistribution, size * sizeof(DistributionT));
+		cudaMemcpy(binomDistribution, sampler.binomDistribution.data(), size * sizeof(DistributionT), cudaMemcpyHostToDevice);
+	}
+	void clear() {
+		cudaFree(binomDistribution);
+		size = 0;
+	}
+	GPU int sample(float u, float v) {
+		int idx = min(int(float(size) * u), size - 1);
+		DistributionT d = binomDistribution[idx];
+		return v < d.prob ? idx : d.failId;
 	}
 };

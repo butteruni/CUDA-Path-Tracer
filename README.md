@@ -24,7 +24,13 @@ CUDA Path Tracer
 |                        **Dieletric**                         |
 | ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/dielectric.png?raw=true) |
 
+- Environment Map
 
+  ​	![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/envmap.png?raw=true)
+
+- Image based Texture
+
+  ​	![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/image_based_texture.png?raw=true)
 
 ## Optimization:
 
@@ -36,12 +42,12 @@ CUDA Path Tracer
 
 ​		
 
-| Resolution               | 800 x 800               |
-| ------------------------ | ----------------------- |
-| Speed                    | 15.6 frames per seconds |
+|        Resolution        | 800 x 800               |
+| :----------------------: | ----------------------- |
+|          Speed           | 15.6 frames per seconds |
 | Million Rays Per Seconds | 9.98                    |
-| Triangle Number          | 69642                   |
-| SPP                      | 2000                    |
+|     Triangle Number      | 69642                   |
+|           SPP            | 2000                    |
 
 
 
@@ -49,8 +55,3 @@ CUDA Path Tracer
 
   
 
-## Todo Lists:
-
-- environment map
-- image based texture
-- multi-importance sampling

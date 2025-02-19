@@ -106,6 +106,18 @@ void Scene::loadFromJSON(const std::string& jsonName)
 
         geoms.push_back(newGeom);
     }
+    const auto& envData = data["EnvMap"];
+    if (envData != nullptr) {
+        const auto& texture = envData["TEXTURE"];
+        if (texture.is_string()) {
+            stbi_set_flip_vertically_on_load(false);
+            envTextureId = getTextureIndex(texture);
+            stbi_set_flip_vertically_on_load(true);
+        }
+        else {
+            std::cout << "illegal envMap format" << texture << std::endl;
+        }
+    }
     const auto& cameraData = data["Camera"];
     Camera& camera = state.camera;
     RenderState& state = this->state;
@@ -162,12 +174,9 @@ void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 }
 
 Image* Scene::loadTexture(const std::string& textureName) {
-	if (textureMap.find(textureName) != textureMap.end()) {
-		return textureMap[textureName];
-	}
+	std::cout << "Loading texture from" << textureName << std::endl;
 	Image* texture = new Image(textureName);
 	textureMap[textureName] = texture;
-	textureIds[textureName] = textures.size();
 	textures.push_back(texture);
 	return texture;
 }
@@ -259,8 +268,7 @@ void Scene::toDevice()
 	std::cout << meshData.vertices.size() / 3 << " triangles" << std::endl;
 	std::cout << lightPrimIds.size() << " light primitives" << std::endl;
 	int bvhsize = BVHBuilder::build(meshData.vertices, bounds, linearNodes, SplitMethod::SAH);
-
-	lightSampler = DiscreteSampler1D<float>(lightPower);
+    buildSampler();
     hstScene.loadFromScene(*this);
     cudaMalloc(&devScene, sizeof(GPUScene));
     cudaMemcpy(devScene, &hstScene, sizeof(GPUScene), cudaMemcpyHostToDevice);
@@ -272,12 +280,28 @@ void Scene::toDevice()
     lightPrimIds.clear();
 	lightUnitRadiance.clear();
 	lightPower.clear();
-    lightSampler.binomDistribution.clear();
+    lightSampler.clear();
+    envSampler.clear();
 	sumLightPower = 0;
 	numLightPrim = 0;
     cudaDeviceSynchronize();
 }
-
+void Scene::buildSampler() {
+    if (envTextureId != -1) {
+		const auto envTexture = textures[envTextureId];
+        std::vector<float> envPdf(envTexture->getSize() / sizeof(glm::vec3));
+        for (int y = 0; y < envTexture->ySize; ++y) {
+            for (int x = 0; x < envTexture->xSize; ++x) {
+				int idx = y * envTexture->xSize + x;
+                float radiance = luminance(envTexture->getPixel(x, y));
+				envPdf[idx] = radiance * glm::sin((0.5f + y) / envTexture->ySize * PI);
+            }
+        }
+		envSampler = DiscreteSampler1D<float>(envPdf);
+    }
+    lightPower.push_back(envSampler.sum);
+	lightSampler = DiscreteSampler1D<float>(lightPower);
+}
 
 void GPUScene::loadFromScene(const Scene& scene) {
     cudaDeviceSynchronize();
@@ -304,33 +328,36 @@ void GPUScene::loadFromScene(const Scene& scene) {
     checkCUDAError("load material");
 
     int textureSize = 0;
-	std::vector<GPUImage> devTextures;
+	std::vector<GPUImage> hostTextures;
 	for (auto& texture : scene.textures) {
 		textureSize += texture->getSize();
 	}
 	cudaMalloc(&texturePixels, textureSize);
     int offset = 0;
 	for (auto& texture : scene.textures) {
-		cudaMemcpy(texturePixels, texture->pixels, texture->getSize(), cudaMemcpyHostToDevice);
-		devTextures.push_back(GPUImage(texture, texturePixels + offset));
+		cudaMemcpy(texturePixels + offset, texture->pixels, texture->getSize(), cudaMemcpyHostToDevice);
+        hostTextures.push_back(GPUImage(texture, texturePixels + offset));
         offset += texture->getSize() / sizeof(glm::vec3);
 	}
-	cudaMalloc(&textures, getVectorByteSize(devTextures));
-	cudaMemcpy(textures, devTextures.data(), getVectorByteSize(devTextures), cudaMemcpyHostToDevice);
+	cudaMalloc(&textures, getVectorByteSize(hostTextures));
+	cudaMemcpy(textures, hostTextures.data(), getVectorByteSize(hostTextures), cudaMemcpyHostToDevice);
 	checkCUDAError("load texture");
-
 
 	cudaMalloc(&devLightPrimIds, getVectorByteSize(scene.lightPrimIds));
 	cudaMemcpy(devLightPrimIds, scene.lightPrimIds.data(), getVectorByteSize(scene.lightPrimIds), cudaMemcpyHostToDevice);
 	cudaMalloc(&devLightUnitRadiance, getVectorByteSize(scene.lightUnitRadiance));
 	cudaMemcpy(devLightUnitRadiance, scene.lightUnitRadiance.data(), getVectorByteSize(scene.lightUnitRadiance), cudaMemcpyHostToDevice);
-	cudaMalloc(&devLightDistribution, getVectorByteSize(scene.lightSampler.binomDistribution));
-	cudaMemcpy(devLightDistribution, scene.lightSampler.binomDistribution.data(), getVectorByteSize(scene.lightSampler.binomDistribution), cudaMemcpyHostToDevice);
+	
+	devlightSampler.loadFromHost(scene.lightSampler);
+    if (scene.envTextureId != -1) {
+        devEnvSampler.loadFromHost(scene.envSampler);
+		devEnvTexture = textures + scene.envTextureId;
+    }
     devNumLightPrim = scene.numLightPrim;
-	devSumLightPower = scene.sumLightPower;
+	devSumLightPower = scene.lightSampler.sum;
     devSumLightPowerInv = 1.f / devSumLightPower;
     printf("lightSumInv: %f\n", devSumLightPowerInv);
-    checkCUDAError("load Light sample");
+    checkCUDAError("load Light sampler");
 
 	devNumNodes = scene.linearNodes[0].size();
     cudaMalloc(&deviceBounds, getVectorByteSize(scene.bounds));
@@ -360,7 +387,7 @@ void GPUScene::clear() {
 	safeCudaFree(devlinearNodes);
 	safeCudaFree(devLightPrimIds);
 	safeCudaFree(devLightUnitRadiance);
-	safeCudaFree(devLightDistribution);
+
 }
 void Scene::clearScene() {
     hstScene.clear();
