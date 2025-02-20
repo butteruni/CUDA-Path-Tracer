@@ -39,10 +39,21 @@ public:
 	void loadFromScene(const Scene& scene);
 	void clear();
 
-	GPU Material getIntersectionMaterial(const ShadeableIntersection &isect) {
+	GPU Material getIntersectionMaterial(ShadeableIntersection &isect) {
 		Material m = materials[isect.materialId];
 		if (m.colorTextureId != -1) {
 			m.color = textures[m.colorTextureId].linearSample(isect.uv.x, isect.uv.y);
+		}
+		if (m.metallicTextureId != -1) {
+			m.metallic = textures[m.metallicTextureId].linearSample(isect.uv.x, isect.uv.y).r;
+		}
+		if (m.roughnessTextureId != -1) {
+			m.roughness = textures[m.roughnessTextureId].linearSample(isect.uv.x, isect.uv.y).r;
+		}
+		if (m.normalTextureId != -1) {
+			glm::vec3 mapped = textures[m.normalTextureId].linearSample(isect.uv.x, isect.uv.y);
+			glm::vec3 localNormal = glm::normalize(mapped - 0.5f);
+			isect.surfaceNormal = glm::normalize(localToWorld(isect.surfaceNormal, localNormal));
 		}
 		return m;
 	}
@@ -132,7 +143,7 @@ public:
 			return occlusionNaive(x, y);
 	}
 	GPU float envLightPdf(const glm::vec3 radiance) {
-		return luminance(radiance) * devSumLightPowerInv * devEnvTexture->xSize * devEnvTexture->ySize * INV_PI * INV_PI * 0.5f;
+		return luminance(radiance) * devSumLightPowerInv * devEnvTexture->xSize * devEnvTexture->ySize * 0.5f;
 	}
 	GPU float sampleEnvLight(glm::vec3 pos, glm::vec2 random, glm::vec3& radiance, glm::vec3& wi) {
 		int pixelId = devEnvSampler.sample(random.x, random.y);
@@ -144,7 +155,7 @@ public:
 		if (!visible) {
 			return -1;
 		}
-		return envLightPdf(radiance);
+		return envLightPdf(radiance) * INV_PI * INV_PI;
 	}
 	GPU float sampleDirectLight(glm::vec3 pos, glm::vec4 random, glm::vec3 &radiance, glm::vec3 &wi) {
 		
@@ -165,7 +176,7 @@ public:
 			return -1;
 		}
 		glm::vec3 lightNormal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-		glm::vec3 lightdir = pos - samplePoint;
+		glm::vec3 lightdir = samplePoint - pos;
 		
 		radiance = devLightUnitRadiance[lightId];
 		wi = glm::normalize(lightdir);

@@ -29,6 +29,18 @@ void Scene::loadFromJSON(const std::string& jsonName)
 {
     std::ifstream f(jsonName);
     json data = json::parse(f);
+    const auto& envData = data["EnvMap"];
+    if (envData != nullptr) {
+        const auto& texture = envData["TEXTURE"];
+        if (texture.is_string()) {
+            stbi_set_flip_vertically_on_load(false);
+            envTextureId = getTextureIndex(texture);
+        }
+        else {
+            std::cout << "illegal envMap format" << texture << std::endl;
+        }
+    }
+    stbi_set_flip_vertically_on_load(true);
     const auto& materialsData = data["Materials"];
     std::unordered_map<std::string, uint32_t> MatNameToID;
     for (const auto& item : materialsData.items())
@@ -48,8 +60,20 @@ void Scene::loadFromJSON(const std::string& jsonName)
         }
         else if (p["TYPE"] == "Conductor")
         {
-			newMaterial.roughness = p["ROUGHNESS"];
-			newMaterial.metallic = p["METALLIC"];
+			const auto& roughness = p["ROUGHNESS"];
+            if (roughness.is_string()) {
+				newMaterial.roughnessTextureId = getTextureIndex(roughness);
+            }
+            else {
+                newMaterial.roughness = roughness;
+            }
+            const auto& metallic = p["METALLIC"];
+            if (metallic.is_string()) {
+                newMaterial.metallicTextureId = getTextureIndex(metallic);
+            }
+            else {
+			    newMaterial.metallic = metallic;
+            }
 			newMaterial.type = Conductor;
 		}
 		else if (p["TYPE"] == "Dielectric")
@@ -71,6 +95,12 @@ void Scene::loadFromJSON(const std::string& jsonName)
                 exit(-1);
             }
 		}
+        if (p.contains("NormalMap")) {
+            const auto& norm = p["NormalMap"];
+		    if (norm.is_string()) {
+			    newMaterial.normalTextureId = getTextureIndex(norm);
+		    }
+        }
         MatNameToID[name] = materials.size();
         materials.emplace_back(newMaterial);
     }
@@ -105,18 +135,6 @@ void Scene::loadFromJSON(const std::string& jsonName)
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
         geoms.push_back(newGeom);
-    }
-    const auto& envData = data["EnvMap"];
-    if (envData != nullptr) {
-        const auto& texture = envData["TEXTURE"];
-        if (texture.is_string()) {
-            stbi_set_flip_vertically_on_load(false);
-            envTextureId = getTextureIndex(texture);
-            stbi_set_flip_vertically_on_load(true);
-        }
-        else {
-            std::cout << "illegal envMap format" << texture << std::endl;
-        }
     }
     const auto& cameraData = data["Camera"];
     Camera& camera = state.camera;
@@ -174,7 +192,7 @@ void Scene::loadMesh(const std::string& meshName, Geom& dst_data)
 }
 
 Image* Scene::loadTexture(const std::string& textureName) {
-	std::cout << "Loading texture from" << textureName << std::endl;
+	std::cout << "Loading texture from " << textureName << std::endl;
 	Image* texture = new Image(textureName);
 	textureMap[textureName] = texture;
 	textures.push_back(texture);
@@ -281,6 +299,8 @@ void Scene::toDevice()
 	lightUnitRadiance.clear();
 	lightPower.clear();
     lightSampler.clear();
+	textureIds.clear();
+    textureMap.clear();
     envSampler.clear();
 	sumLightPower = 0;
 	numLightPrim = 0;
@@ -327,17 +347,19 @@ void GPUScene::loadFromScene(const Scene& scene) {
     cudaMemcpy(materialIDs, scene.materialIDs.data(), getVectorByteSize(scene.materialIDs), cudaMemcpyHostToDevice);
     checkCUDAError("load material");
 
-    int textureSize = 0;
+    long long textureSize = 0;
 	std::vector<GPUImage> hostTextures;
 	for (auto& texture : scene.textures) {
 		textureSize += texture->getSize();
 	}
+    std::cout << textureSize << '\n';
 	cudaMalloc(&texturePixels, textureSize);
     int offset = 0;
 	for (auto& texture : scene.textures) {
 		cudaMemcpy(texturePixels + offset, texture->pixels, texture->getSize(), cudaMemcpyHostToDevice);
         hostTextures.push_back(GPUImage(texture, texturePixels + offset));
         offset += texture->getSize() / sizeof(glm::vec3);
+        checkCUDAError("malloc texture");
 	}
 	cudaMalloc(&textures, getVectorByteSize(hostTextures));
 	cudaMemcpy(textures, hostTextures.data(), getVectorByteSize(hostTextures), cudaMemcpyHostToDevice);
@@ -387,7 +409,11 @@ void GPUScene::clear() {
 	safeCudaFree(devlinearNodes);
 	safeCudaFree(devLightPrimIds);
 	safeCudaFree(devLightUnitRadiance);
-
+	devEnvSampler.clear();
+	devlightSampler.clear();
+	safeCudaFree(texturePixels);
+	safeCudaFree(textures);
+	safeCudaFree(devEnvTexture);
 }
 void Scene::clearScene() {
     hstScene.clear();

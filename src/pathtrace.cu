@@ -254,6 +254,13 @@ __global__ void pathIntegrator(
         }
     }
     else {
+        if (dev_scene->devEnvTexture != nullptr) {
+            glm::vec3 w = segment.ray.direction;
+            glm::vec2 uv = DirToUV(w);
+            glm::vec3 envlight = dev_scene->devEnvTexture->linearSample(uv.x, uv.y);
+            glm::vec3 radiance = envlight * segment.color;
+            sumRadiance += radiance;
+        }
 		segment.remainingBounces = 0;
     }
 	segment.radiance += sumRadiance;
@@ -276,9 +283,6 @@ __global__ void misPathIntegrator(
     if (intersection.t > 0.f) {
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
 		Material material = dev_scene->getIntersectionMaterial(intersection);
-        BSDFSample sampler;
-        material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
-        segment.ray = makeSteppedRay(intersection.point, glm::normalize(sampler.wi));
         if (material.type == MaterialType::Light) {
             glm::vec3 radiance = material.color * material.emittance;
             if (depth == 0) {
@@ -298,37 +302,39 @@ __global__ void misPathIntegrator(
             segment.remainingBounces = 0;
         }
         else {
+
+            bool deltaBSDF = (material.type == MaterialType::Dielectric); 
+            if (!deltaBSDF && glm::dot(intersection.dir, intersection.surfaceNormal) <= 0.f) {
+				intersection.surfaceNormal = -intersection.surfaceNormal;
+            }
+
+            if(!deltaBSDF) {
+                glm::vec3 radiance(0.f);
+                glm::vec3 wi;
+                float lightPdf = dev_scene->sampleDirectLight(intersection.point, sample4D(rng), radiance, wi);
+                if (lightPdf > 0.f) {
+                    glm::vec3 bsdf = material.BSDF(intersection.surfaceNormal, intersection.dir, wi);
+                    float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.dir, wi);
+                    float weight = powerHeuristic(lightPdf, bsdfPdf);
+                    sumRadiance += segment.color * bsdf *
+                        radiance * glm::max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight;
+                }
+            }
+            BSDFSample sampler;
+            material.SampleBSDF(intersection.surfaceNormal, intersection.dir, sample3D(rng), sampler);
+            segment.ray = makeSteppedRay(intersection.point, glm::normalize(sampler.wi));
             if (sampler.pdf < 0 || sampler.flags == Unset) {
                 segment.remainingBounces = 0;
-            }
-            else {
-                bool deltaBSDF = (material.type == MaterialType::Dielectric); 
-                if (!deltaBSDF && glm::dot(intersection.prev, intersection.surfaceNormal) <= 0.f) {
-					intersection.surfaceNormal = -intersection.surfaceNormal;
-                }
-
-                if(!deltaBSDF) {
-                    glm::vec3 radiance(0.f);
-                    glm::vec3 wi;
-                    float lightPdf = dev_scene->sampleDirectLight(intersection.point, sample4D(rng), radiance, wi);
-                    if (lightPdf > 0.f) {
-                        glm::vec3 bsdf = material.BSDF(intersection.surfaceNormal, intersection.dir, wi);
-                        float bsdfPdf = material.pdf(intersection.surfaceNormal, intersection.dir, wi);
-                        float weight = powerHeuristic(lightPdf, bsdfPdf);
-                        sumRadiance += segment.color * bsdf *
-                            radiance * glm::max(0.f, glm::dot(intersection.surfaceNormal, wi)) / lightPdf * weight ;
-                    }
-                }
+            }else {
                 bool isDelta = sampler.flags & BxDFFlags::Specular;
                 segment.color *= sampler.bsdf / sampler.pdf;
                 if (!isDelta)
                     segment.color *= glm::abs(glm::dot(sampler.wi, intersection.surfaceNormal));
-                segment.ray.direction = glm::normalize(sampler.wi);
-                segment.ray.origin = intersection.point + EPSILON * segment.ray.direction;
                 segment.deltaSample = isDelta;
                 segment.pdf = sampler.pdf;
                 segment.remainingBounces--;
             }
+            
         }
     }
     else {
@@ -342,7 +348,7 @@ __global__ void misPathIntegrator(
 				sumRadiance += radiance;
             }
             else {
-                float lightweight = dev_scene->envLightPdf(radiance);
+                float lightweight = dev_scene->envLightPdf(envlight);
 				float weight = segment.deltaSample ? 1.f : powerHeuristic(segment.pdf, lightweight);
 				sumRadiance += radiance * weight;
             }

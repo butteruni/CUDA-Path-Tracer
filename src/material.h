@@ -62,14 +62,12 @@ CPUGPU inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, g
 		return false;
 	}
 	float cosThetaT = glm::sqrt(1.f - sin2ThetaT);
-	if (cosThetaI < 0) {
-		cosThetaT *= -1;
-	}
 	wt = glm::normalize(-wi / eta + (cosThetaI / eta - cosThetaT) * n);
 	return true;
 }
 // Geometry Function
 CPUGPU inline float Schlick_GGX(float cosTheta, float k) {
+	k = k * 0.5;
 	return cosTheta / (cosTheta * (1.f - k) + k);
 }
 CPUGPU inline float Smith_GGX(float cosThetaI, float cosThetaO, float alphaG) {
@@ -77,6 +75,9 @@ CPUGPU inline float Smith_GGX(float cosThetaI, float cosThetaO, float alphaG) {
 }
 // Normal Distribution Function
 CPUGPU inline float GGX_D(float cosThetaH, float alphaG) {
+	if (cosThetaH < 1e-8f) {
+		return 0.f;
+	}
 	float alphaG2 = alphaG * alphaG;
 	float denom = (cosThetaH * cosThetaH * (alphaG2 - 1.f) + 1.f);
 	return alphaG2 / (PI * denom * denom);
@@ -100,10 +101,10 @@ struct Material
         float exponent;
         glm::vec3 color;
     } specular;
-	int colorTextureId;
-	int normalTextureId;
-	int roughnessTextureId;
-	int metallicTextureId;
+	int colorTextureId = -1;
+	int normalTextureId = -1;
+	int roughnessTextureId = -1;
+	int metallicTextureId = -1;
     float roughness;
     float indexOfRefraction;
     float emittance;
@@ -128,13 +129,14 @@ struct Material
 		if (cosThetaI * cosThetaO < 1e-7f) {
 			return glm::vec3(0.f);
 		}
-		glm::vec3 F = fresnelSchlick(glm::dot(h, wo), glm::mix(glm::vec3(.08f), color, metallic));
+		glm::vec3 F = fresnelSchlick(glm::dot(h, wo), glm::mix(glm::vec3(.04f), color, metallic));
 		float G = Smith_GGX(cosThetaI, cosThetaO, alpha);
 		float D = GGX_D(glm::dot(n, h), alpha);
 
-		return glm::mix(DiffuseBSDF() * (1.f - metallic),
-						glm::vec3(G * D / (4.f * cosThetaI * cosThetaO)),
-						F);
+		glm::vec3 specular = F * G * D / (4.f * cosThetaI * cosThetaO);
+		glm::vec3 diffuse = DiffuseBSDF() * (1.f - F) * (1.f - metallic);
+
+		return diffuse + specular;
 	}
 	CPUGPU float ConductorPdf(const glm::vec3 &n, const glm::vec3 &wo, const glm::vec3& wi) {
 		glm::vec3 h = glm::normalize(wi + wo);

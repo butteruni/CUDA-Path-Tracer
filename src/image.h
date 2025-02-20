@@ -10,8 +10,8 @@ using namespace std;
 class Image
 {
 public:
-    int xSize;
-    int ySize;
+    int xSize = 0;
+    int ySize = 0;
     glm::vec3 *pixels;
 
     Image(int x, int y);

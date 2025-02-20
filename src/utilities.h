@@ -152,9 +152,8 @@ CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, co
     return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
 }
 CPUGPU inline glm::vec2 DirToUV(const glm::vec3& dir) {
-    float phi = glm::atan(dir.z, dir.x);
-    float u = (phi + PI) * INV_TWO_PI;
-	float theta = glm::acos(dir.y);
+    float u = glm::fract(glm::atan(dir.z, dir.x) * INV_PI * 0.5f + 1.0f);
+	float theta = glm::atan(dir.y, glm::length(glm::vec2(dir.x, dir.z)));
 	return glm::vec2(u, theta * INV_PI);
 }
 CPUGPU inline glm::vec3 UVtoDir(glm::vec2 uv) {
