@@ -52,7 +52,7 @@ public:
 		}
 		if (m.normalTextureId != -1) {
 			glm::vec3 mapped = textures[m.normalTextureId].linearSample(isect.uv.x, isect.uv.y);
-			glm::vec3 localNormal = glm::normalize(mapped - 0.5f);
+			glm::vec3 localNormal = glm::normalize(mapped * 2.f - 1.f);
 			isect.surfaceNormal = glm::normalize(localToWorld(isect.surfaceNormal, localNormal));
 		}
 		return m;

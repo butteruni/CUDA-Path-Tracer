@@ -141,7 +141,7 @@ struct Material
 	CPUGPU float ConductorPdf(const glm::vec3 &n, const glm::vec3 &wo, const glm::vec3& wi) {
 		glm::vec3 h = glm::normalize(wi + wo);
 		return glm::mix(DiffusePdf(n, wi),
-						GGX_Pdf(n, h, wo, roughness * roughness) / glm::max(EPSILON, (4.f * glm::dot(h, wo))),
+						GGX_Pdf(n, h, wo, roughness * roughness) / glm::abs((4.f * glm::dot(h, wo))),
 						1.f / (2.f - metallic));
 
 

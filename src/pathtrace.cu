@@ -248,7 +248,7 @@ __global__ void pathIntegrator(
                 bool isDelta = sampler.flags & BxDFFlags::Specular;
                 segment.color *= sampler.bsdf / sampler.pdf;
                 if(!isDelta)
-				    segment.color *= glm::dot(sampler.wi, intersection.surfaceNormal);
+                    segment.color *= glm::abs(glm::dot(sampler.wi, intersection.surfaceNormal));
 			    segment.remainingBounces--;
             }
         }

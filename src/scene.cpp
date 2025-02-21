@@ -159,11 +159,13 @@ void Scene::loadFromJSON(const std::string& jsonName)
     float fovx = (atan(xscaled) * 180) / PI;
     camera.fov = glm::vec2(fovx, fovy);
     camera.tanFovY = glm::tan(glm::radians(fovy * 0.5f));
+    camera.view = glm::normalize(camera.lookAt - camera.position);
     camera.right = glm::normalize(glm::cross(camera.view, camera.up));
     camera.pixelLength = glm::vec2(2 * xscaled / (float)camera.resolution.x,
         2 * yscaled / (float)camera.resolution.y);
 
-    camera.view = glm::normalize(camera.lookAt - camera.position);
+	std::cout << "Camera at: " << glm::to_string(camera.position) << std::endl;
+	std::cout << "Look at: " << glm::to_string(camera.lookAt) << std::endl;
 
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;

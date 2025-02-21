@@ -81,7 +81,7 @@ CPUGPU static glm::vec3 GGX_sampleNormal(const glm::vec3& n, const glm::vec3 &wo
 	glm::vec3 wh = wo * glm::vec3(alpha, alpha, 1.f);
 	wh = glm::normalize(refMatInv * wh);
 
-	glm::vec3 t1 = (wh.z < 0.9999f) ? 
+	glm::vec3 t1 = (wh.z < 0.999999f) ? 
 		glm::normalize(glm::cross(glm::vec3(0.f, 0.f, 1.f), wh)) : glm::vec3(1.f, 0.f, 0.f);
 	glm::vec3 t2 = glm::cross(wh, t1);
 	glm::vec2 p = squareToDiskConcentric(r);
