@@ -9,6 +9,10 @@ CUDA Path Tracer
   * 32 RAM
   * NVIDIA GeForce RTX 4070 Laptop 8GB
 
+## Example：
+
+![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/camera.png?raw=true)
+
 
 ## Basic:
 

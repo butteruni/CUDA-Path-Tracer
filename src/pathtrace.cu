@@ -35,6 +35,7 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution, int iter, glm
 		color = image[index] / (float)iter;
 		//color = uncharted2filmic(color);
         color = ACES(color);
+        color = gammaCorrect(color);
         glm::ivec3 icolor = glm::clamp(glm::ivec3(color * 255.f), glm::ivec3(0), glm::ivec3(255));
         // Each thread writes one pixel location in the texture (textel)
 
@@ -355,7 +356,8 @@ __global__ void misPathIntegrator(
         }
         segment.remainingBounces = 0;
     }
-	segment.radiance += sumRadiance;
+	if (sumRadiance.x > 0 && sumRadiance.y > 0 && sumRadiance.z > 0)
+	    segment.radiance += sumRadiance;
 }
 
 // Add the current iteration's output to the overall image
