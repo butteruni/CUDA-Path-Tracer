@@ -36,26 +36,13 @@ CUDA Path Tracer
 
   ​	![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/image_based_texture.png?raw=true)
 
-## Optimization:
-
-- MTBVH acceleration
-
-- Reshuffle by Material
-
-  ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/conductor_bunny.png?raw=true)
-
-​		
-
-|        Resolution        | 800 x 800               |
-| :----------------------: | ----------------------- |
-|          Speed           | 15.6 frames per seconds |
-| Million Rays Per Seconds | 9.98                    |
-|     Triangle Number      | 69642                   |
-|           SPP            | 2000                    |
 
 
+## Todo Lists:	
 
-- MIS(multi-importance sampling)
-
-  
+- [ ] Wavefront Rendering
+- [ ] Volume Rendering
+- [ ] More Optimization
+- [ ] glTF format support
+- [ ] refactor code
 
