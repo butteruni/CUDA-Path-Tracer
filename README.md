@@ -41,8 +41,14 @@ CUDA Path Tracer
 ## Todo Lists:	
 
 - [ ] Wavefront Rendering
+
 - [ ] Volume Rendering
+
+- [ ] Photo Mapping
+
 - [ ] More Optimization
+
 - [ ] glTF format support
-- [ ] refactor code
+
+  
 
