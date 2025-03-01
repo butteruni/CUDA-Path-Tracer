@@ -9,9 +9,8 @@ int BVHBuilder::build(const std::vector<glm::vec3>& vertices, std::vector<AABB>&
 	std::vector<Prim> prims(faceSize);
 	for (int i = 0; i < faceSize; i++) {
 		prims[i] = { i, AABB(vertices[i * 3], vertices[i * 3 + 1], vertices[i * 3 + 2]) };
-		//prims[i].aabb.merge(prims[i].aabb.pmin - glm::vec3(EPSILON));
-		//prims[i].aabb.merge(prims[i].aabb.pmax + glm::vec3(EPSILON));
-
+		prims[i].aabb.merge(prims[i].aabb.pmin - glm::vec3(EPSILON));
+		prims[i].aabb.merge(prims[i].aabb.pmax + glm::vec3(EPSILON));
 	}
 	std::vector<BVHNodeInfo> nodeInfos(maxBVHSize);
 	switch (method)

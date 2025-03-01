@@ -29,8 +29,8 @@ void Scene::loadFromJSON(const std::string& jsonName)
 {
     std::ifstream f(jsonName);
     json data = json::parse(f);
-    const auto& envData = data["EnvMap"];
-    if (envData != nullptr) {
+    if (data.contains("EnvMap")) {
+        const auto& envData = data["EnvMap"];
         const auto& texture = envData["TEXTURE"];
         if (texture.is_string()) {
             stbi_set_flip_vertically_on_load(false);

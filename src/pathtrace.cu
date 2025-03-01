@@ -52,6 +52,7 @@ static glm::vec3* dev_image = NULL;
 static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
+GPU static float RR = 0.8;
 thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
 thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections;
@@ -281,8 +282,8 @@ __global__ void misPathIntegrator(
     glm::vec3 sumRadiance(0.f);
     ShadeableIntersection intersection = shadeableIntersections[idx];
     PathSegment& segment = pathSegments[idx];
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
     if (intersection.t > 0.f) {
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
 		Material material = dev_scene->getIntersectionMaterial(intersection);
         if (material.type == MaterialType::Light) {
             glm::vec3 radiance = material.color * material.emittance;
@@ -358,6 +359,15 @@ __global__ void misPathIntegrator(
     }
 	if (sumRadiance.x > 0 && sumRadiance.y > 0 && sumRadiance.z > 0)
 	    segment.radiance += sumRadiance;
+    if (depth > 4 && segment.remainingBounces > 0) {
+        float p = sample1D(rng);
+        if (p < RR) {
+            segment.remainingBounces = 0;
+        }
+        else {
+            segment.radiance /= RR;
+        }
+    }
 }
 
 // Add the current iteration's output to the overall image
