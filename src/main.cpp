@@ -1,6 +1,9 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#ifdef USE_OIDN
+#include <OpenImageDenoise/oidn.hpp>
+#endif // 
 
 static std::string startTimeString;
 
@@ -90,14 +93,60 @@ void saveImage()
     float samples = iteration;
     // output image file
     Image img(width, height);
+	for (int i = 0; i < width * height; ++i)
+	{
+        renderState->image[i] /= samples;
+	}
+    #ifdef USE_OIDN
+        std::vector<float> noisyImage(width * height * 3);
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                int index = x + (y * width);
+                glm::vec3 pix = renderState->image[index];
+                noisyImage[3 * index + 0] = pix.r;
+                noisyImage[3 * index + 1] = pix.g;
+                noisyImage[3 * index + 2] = pix.b;
+            }
+        }
+        oidn::DeviceRef device = oidn::newDevice(); 
+        device.commit();
+        // 创建 OIDN 缓冲区
+        oidn::BufferRef colorBuffer = device.newBuffer(noisyImage.size() * sizeof(float));
+        float* colorPtr = (float*)colorBuffer.getData();
+        std::memcpy(colorPtr, noisyImage.data(), noisyImage.size() * sizeof(float)); // 将数据复制到 OIDN 缓冲区
 
-    for (int x = 0; x < width; x++)
+        // 创建 OIDN 输出缓冲区
+        oidn::BufferRef outputBuffer = device.newBuffer(noisyImage.size() * sizeof(float));
+        float* outputPtr = (float*)outputBuffer.getData();
+
+        // 创建 OIDN 过滤器
+        oidn::FilterRef filter = device.newFilter("RT");
+        filter.setImage("color", colorBuffer, oidn::Format::Float3, width, height);
+        filter.setImage("output", outputBuffer, oidn::Format::Float3, width, height);
+        filter.set("hdr", true); 
+        filter.commit();
+
+        filter.execute();
+        std::memcpy(noisyImage.data(), outputPtr, noisyImage.size() * sizeof(float));
+        const char* errorMessage;
+        if (device.getError(errorMessage) != oidn::Error::None) {
+            std::cerr << "OIDN error: " << errorMessage << std::endl;
+        }
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				int index = x + (y * width);
+				glm::vec3 pix = glm::vec3(noisyImage[3 * index + 0], noisyImage[3 * index + 1], noisyImage[3 * index + 2]);
+				renderState->image[index] = pix;
+			}
+		}
+    #endif
+    for (int x = 0; x < width; x++) 
     {
-        for (int y = 0; y < height; y++)
+        for (int y = 0; y < height; y++) 
         {
             int index = x + (y * width);
-            glm::vec3 pix = renderState->image[index] / samples;
-			pix = ACES(pix);
+            glm::vec3 pix = renderState->image[index];
+            pix = ACES(pix);
             pix = gammaCorrect(pix);
             img.setPixel(width - 1 - x, y, glm::vec3(pix));
         }
@@ -136,7 +185,7 @@ void runCuda()
         camchanged = false;
     }
 
-    // Map OpenGL buffer object for writing from CUDA on a single GPU
+    // Map OpenGL buffer object for writing from CUDA on a single __device__
     // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
 
     if (iteration == 0)

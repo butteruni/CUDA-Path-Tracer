@@ -1,5 +1,6 @@
 #include <stack>
 #include "bvh.h"
+
 int BVHBuilder::build(const std::vector<glm::vec3>& vertices, std::vector<AABB>& aabbs, 
 	std::vector<std::vector<LinearBVHNode>>& linearNodes, SplitMethod method) {
 	std::cout << "Building BVH\n";

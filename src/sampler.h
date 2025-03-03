@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <thrust/random.h>
 #include <stack>
+
 #include "macro.h"
 __host__ __device__ inline glm::vec3 calculateRandomDirectionInHemisphere(
 	glm::vec3 normal,
@@ -43,39 +44,39 @@ __host__ __device__ inline glm::vec3 calculateRandomDirectionInHemisphere(
 		+ sin(around) * over * perpendicularDirection2;
 }
 
-CPUGPU static glm::vec2 squareToDiskConcentric(const glm::vec2& sample)
+__host__ __device__ static glm::vec2 squareToDiskConcentric(const glm::vec2& sample)
 {
 	float r = glm::sqrt(sample.x);
 	float theta = TWO_PI * sample.y;
 	return glm::vec2(r * glm::cos(theta), r * glm::sin(theta));
 }
 
-CPUGPU static glm::mat3 localRefMatrix(glm::vec3 n) {
+__host__ __device__ static glm::mat3 localRefMatrix(glm::vec3 n) {
 	glm::vec3 t = (glm::abs(n.y) > 0.9999f) ? glm::vec3(0.f, 0.f, 1.f) : glm::vec3(0.f, 1.f, 0.f);
 	glm::vec3 b = glm::normalize(glm::cross(n, t));
 	t = glm::cross(b, n);
 	return glm::mat3(t, b, n);
 }
 
-CPUGPU static glm::vec3 localToWorld(glm::vec3 n, glm::vec3 v) {
+__host__ __device__ static glm::vec3 localToWorld(glm::vec3 n, glm::vec3 v) {
 	return glm::normalize(localRefMatrix(n) * v);
 }
 
-CPUGPU static glm::vec3 squareToHemiSphereUniform(const glm::vec3 n, const glm::vec2& sample)
+__host__ __device__ static glm::vec3 squareToHemiSphereUniform(const glm::vec3 n, const glm::vec2& sample)
 {
 	float z = sample.x;
 	float r = sqrtf(fmax(0.0f, 1.0f - z * z));
 	float phi = TWO_PI * sample.y;
 	return localToWorld(n, glm::vec3(r * cos(phi), r * sin(phi), z));
 }
-CPUGPU static glm::vec3 squareToHemiSphereCos(const glm::vec3 n, const glm::vec2& sample) {
+__host__ __device__ static glm::vec3 squareToHemiSphereCos(const glm::vec3 n, const glm::vec2& sample) {
 	glm::vec2 d = squareToDiskConcentric(sample);
 	float z = sqrtf(fmax(0.f, 1.f - glm::dot(d, d)));
 	
 	return localToWorld(n, glm::vec3(d, z));
 
 }
-CPUGPU static glm::vec3 GGX_sampleNormal(const glm::vec3& n, const glm::vec3 &wo, const glm::vec2& r, float alpha) {
+__host__ __device__ static glm::vec3 GGX_sampleNormal(const glm::vec3& n, const glm::vec3 &wo, const glm::vec2& r, float alpha) {
 	glm::mat3 refMat = localRefMatrix(n);
 	glm::mat3 refMatInv = glm::inverse(refMat);
 	glm::vec3 wh = wo * glm::vec3(alpha, alpha, 1.f);
@@ -92,27 +93,27 @@ CPUGPU static glm::vec3 GGX_sampleNormal(const glm::vec3& n, const glm::vec3 &wo
 	nh = glm::vec3(nh.x * alpha, nh.y * alpha, glm::max(0.f, nh.z));
 	return glm::normalize(refMat * nh);
 }
-CPUGPU static float squareToSphereUniformPdf(const glm::vec3& sample)
+__host__ __device__ static float squareToSphereUniformPdf(const glm::vec3& sample)
 {
 	return INV_FOUR_PI;
 }
-CPUGPU static float squareToHemiSphereCosPdf(const glm::vec3& sample)
+__host__ __device__ static float squareToHemiSphereCosPdf(const glm::vec3& sample)
 {
 	return INV_TWO_PI * sample.z;
 }
-GPU inline float sample1D(thrust::default_random_engine& rng) {
+__device__ inline float sample1D(thrust::default_random_engine& rng) {
 	return thrust::uniform_real_distribution<float>(0.f, 1.f)(rng);
 }
-GPU inline glm::vec2 sample2D(thrust::default_random_engine& rng) {
+__device__ inline glm::vec2 sample2D(thrust::default_random_engine& rng) {
 	return glm::vec2(sample1D(rng), sample1D(rng));
 }
-GPU inline glm::vec3 sample3D(thrust::default_random_engine& rng) {
+__device__ inline glm::vec3 sample3D(thrust::default_random_engine& rng) {
 	return glm::vec3(sample1D(rng), sample1D(rng), sample1D(rng));
 }
-GPU inline glm::vec4 sample4D(thrust::default_random_engine& rng) {
+__device__ inline glm::vec4 sample4D(thrust::default_random_engine& rng) {
 	return glm::vec4(sample3D(rng), sample1D(rng));
 }
-CPUGPU inline glm::vec3 sampleBary(const glm::vec2& sample) {
+__host__ __device__ inline glm::vec3 sampleBary(const glm::vec2& sample) {
 	glm::vec2 r = glm::sqrt(sample);
 	float u = 1.f - r.y;
 	float v = sample.x * r.y;
@@ -203,7 +204,7 @@ public:
 		cudaFree(binomDistribution);
 		size = 0;
 	}
-	GPU int sample(float u, float v) {
+	__device__ int sample(float u, float v) {
 		int idx = min(int(float(size) * u), size - 1);
 		DistributionT d = binomDistribution[idx];
 		return v < d.prob ? idx : d.failId;

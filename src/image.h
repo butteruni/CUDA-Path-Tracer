@@ -48,10 +48,10 @@ public:
 		ySize = img->ySize;
 		pixels = devPixels;
     }
-    GPU glm::vec3 getPixel(int x, int y) const {
+    __device__ glm::vec3 getPixel(int x, int y) const {
 		return pixels[y * xSize + x];
     }
-    GPU glm::vec3 linearSample(float x, float y) const {
+    __device__ glm::vec3 linearSample(float x, float y) const {
         x = glm::fract(x);
         y = glm::fract(y);
         float fx = x * (xSize - 1); 
@@ -74,7 +74,7 @@ public:
         glm::vec3 result = glm::mix(interpolatedX0, interpolatedX1, dy);
         return result;
     }
-    GPU glm::vec3 linearSample(const glm::vec2 sample) const {
+    __device__ glm::vec3 linearSample(const glm::vec2 sample) const {
         float x = glm::fract(sample.x);
         float y = glm::fract(sample.y);
         float fx = x * (xSize - 1);

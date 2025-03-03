@@ -9,33 +9,33 @@ struct AABB {
 	glm::vec3 pmin = glm::vec3(FLT_MAX);
 	glm::vec3 pmax = glm::vec3(-FLT_MAX);
 	AABB() = default;
-	CPUGPU AABB(const glm::vec3& p) : pmin(p), pmax(p) {}
-	CPUGPU AABB(const glm::vec3& pmin, const glm::vec3& pmax) : pmin(pmin), pmax(pmax) {}
-	CPUGPU AABB(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2) {
+	__host__ __device__ AABB(const glm::vec3& p) : pmin(p), pmax(p) {}
+	__host__ __device__ AABB(const glm::vec3& pmin, const glm::vec3& pmax) : pmin(pmin), pmax(pmax) {}
+	__host__ __device__ AABB(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2) {
 		pmin = glm::min(p0, glm::min(p1, p2));
 		pmax = glm::max(p0, glm::max(p1, p2));
 	}
-	CPUGPU void merge(const glm::vec3& p) {
+	__host__ __device__ void merge(const glm::vec3& p) {
 		pmin = glm::min(pmin, p);
 		pmax = glm::max(pmax, p);
 	}
-	CPUGPU void merge(const AABB& aabb) {
+	__host__ __device__ void merge(const AABB& aabb) {
 		pmin = glm::min(pmin, aabb.pmin);
 		pmax = glm::max(pmax, aabb.pmax);
 	}
-	CPUGPU std::string toString() const {
+	__host__ __device__ std::string toString() const {
 		return "pmin: " + vec3ToString(pmin) + ", pmax: " + vec3ToString(pmax);
 	}
-	CPUGPU glm::vec3 extend() const{
+	__host__ __device__ glm::vec3 extend() const{
 		if (pmin.x > pmax.x) {
 			return glm::vec3(0.f);
 		}
 		return pmax - pmin;
 	}
-	CPUGPU glm::vec3 center() const{
+	__host__ __device__ glm::vec3 center() const{
 		return 0.5f * (pmin + pmax);
 	}
-	CPUGPU glm::vec3 offset(const glm::vec3& p) const{
+	__host__ __device__ glm::vec3 offset(const glm::vec3& p) const{
 		if (pmin.x > pmax.x) {
 			return p;
 		}
@@ -43,18 +43,18 @@ struct AABB {
 		o /= extend();
 		return o;
 	}
-	CPUGPU float surfaceArea() const{
+	__host__ __device__ float surfaceArea() const{
 		glm::vec3 e = extend();
 		return 2.f * (e.x * e.y + e.y * e.z + e.z * e.x);
 	}
-	CPUGPU int maxExtend() const{
+	__host__ __device__ int maxExtend() const{
 		glm::vec3 e = extend();
 		if (e.x < e.y) {
 			return e.y > e.z ? 1 : 2;
 		}
 		return e.x > e.z ? 0 : 2;
 	}
-	CPUGPU bool intersect(const Ray& r, float& tmax) const{
+	__host__ __device__ bool intersect(const Ray& r, float& tmax) const{
 		glm::vec3 o = r.origin;
 		const glm::vec3 invDir = 1.0f / r.direction;
 		float tEnter = FLT_MIN;

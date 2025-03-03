@@ -104,7 +104,7 @@ void inline safeCudaFree(T*& ptr)
     }
 }
 
-CPUGPU inline glm::vec3 ACES(glm::vec3& color) {
+__host__ __device__ inline glm::vec3 ACES(glm::vec3& color) {
 	const float a = 2.51f;
 	const float b = 0.03f;
 	const float c = 2.43f;
@@ -112,7 +112,7 @@ CPUGPU inline glm::vec3 ACES(glm::vec3& color) {
 	const float e = 0.14f;
 	return glm::clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.f, 1.f);
 }
-CPUGPU inline glm::vec3 calcfilmic(glm::vec3& color) {
+__host__ __device__ inline glm::vec3 calcfilmic(glm::vec3& color) {
 	const float A = 0.22f;
 	const float B = 0.3f;
 	const float C = 0.1f;
@@ -121,7 +121,7 @@ CPUGPU inline glm::vec3 calcfilmic(glm::vec3& color) {
 	const float F = 0.3f;
 	return (color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F);
 }
-CPUGPU inline glm::vec3 uncharted2filmic(glm::vec3& color) {
+__host__ __device__ inline glm::vec3 uncharted2filmic(glm::vec3& color) {
 	float exposureBias = 1.6f;
 	glm::vec3 curr = exposureBias * color;
 	glm::vec3 W = glm::vec3(11.2f);
@@ -129,42 +129,42 @@ CPUGPU inline glm::vec3 uncharted2filmic(glm::vec3& color) {
 	return uncharted2filmic(curr) * whiteScale;
 }
 
-CPUGPU inline glm::vec3 gammaCorrect(glm::vec3& color) {
+__host__ __device__ inline glm::vec3 gammaCorrect(glm::vec3& color) {
 	return glm::pow(color, glm::vec3(1.f / 2.2f));
 }
 
-CPUGPU inline float rgbTolumin(const glm::vec3 &c) {
+__host__ __device__ inline float rgbTolumin(const glm::vec3 &c) {
 	return glm::dot(c, glm::vec3(0.2126f, 0.7152f, 0.0722f));
 }
 
-CPUGPU inline std::string vec3ToString(const glm::vec3 &p) {
+__host__ __device__ inline std::string vec3ToString(const glm::vec3 &p) {
 	return std::to_string(p.x) + ", " + std::to_string(p.y) + ", " + std::to_string(p.z);
 }
-CPUGPU inline float triangleArea(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2) {
+__host__ __device__ inline float triangleArea(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2) {
 	return 0.5f * glm::length(glm::cross(v1 - v0, v2 - v0));
 }
-CPUGPU inline float luminance(const glm::vec3& color) {
+__host__ __device__ inline float luminance(const glm::vec3& color) {
 	return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
 }
-CPUGPU inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, const glm::vec3& normalY) {
+__host__ __device__ inline float computeSolidAngle(const glm::vec3& x, const glm::vec3& y, const glm::vec3& normalY) {
     glm::vec3 yTox = x - y;
 	glm::vec3 dir = glm::normalize(yTox);
     return glm::dot(yTox, yTox) / glm::abs(glm::dot(dir, normalY));
 }
-CPUGPU inline glm::vec2 DirToUV(const glm::vec3& dir) {
+__host__ __device__ inline glm::vec2 DirToUV(const glm::vec3& dir) {
     float u = glm::fract(glm::atan(dir.z, dir.x) * INV_PI * 0.5f + 1.0f);
 	float theta = glm::atan(dir.y, glm::length(glm::vec2(dir.x, dir.z)));
 	return glm::vec2(u, theta * INV_PI);
 }
-CPUGPU inline glm::vec3 UVtoDir(glm::vec2 uv) {
+__host__ __device__ inline glm::vec3 UVtoDir(glm::vec2 uv) {
     uv *= glm::vec2(TWO_PI, PI);
 	return glm::vec3(glm::sin(uv.y) * glm::cos(uv.x), glm::cos(uv.y), glm::sin(uv.y) * glm::sin(uv.x));
 }
-CPUGPU inline float powerHeuristic(float f, float g) {
+__host__ __device__ inline float powerHeuristic(float f, float g) {
 	float f2 = f * f;
     return f2 / (f2 + g * g);
 }
 template<typename T>
-CPUGPU bool between(const T& x, const T& min, const T& max) {
+__host__ __device__ bool between(const T& x, const T& min, const T& max) {
     return x >= min && x <= max;
 }

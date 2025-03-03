@@ -35,11 +35,11 @@ struct Ray
 {
     glm::vec3 origin;
     glm::vec3 direction;
-    CPUGPU glm::vec3 at(float t) {
+    __host__ __device__ glm::vec3 at(float t) {
         return origin + t * direction;
     }
 };
-CPUGPU inline Ray makeSteppedRay(glm::vec3& p, glm::vec3& dir) {
+__host__ __device__ inline Ray makeSteppedRay(glm::vec3& p, glm::vec3& dir) {
     return Ray{ p + 1e-4f * dir, dir };
 }
 struct Camera
@@ -92,7 +92,7 @@ struct ShadeableIntersection
   int materialId;
   float deltaSample = false;
   float pdf;
-  GPU void operator = (const ShadeableIntersection& rhs) {
+  __device__ void operator = (const ShadeableIntersection& rhs) {
 	  t = rhs.t;
 	  point = rhs.point;
 	  dir = rhs.dir;

@@ -26,14 +26,14 @@ struct BSDFSample {
     BSDFSample(glm::vec3 wi, float pdf, BxDFFlags flags, glm::vec3 bsdf) :
         wi(wi), pdf(pdf), flags(flags), bsdf(bsdf) {}
 };
-CPUGPU inline float fresnelSchlick(float cosTheta, float f0) {
+__host__ __device__ inline float fresnelSchlick(float cosTheta, float f0) {
 	f0 = (1.f - f0) / (1.f + f0);
 	return f0 + (1.f - f0) * glm::pow(1.f - cosTheta, 5.f);
 }
-CPUGPU inline glm::vec3 fresnelSchlick(float cosTheta, glm::vec3 f0) {
+__host__ __device__ inline glm::vec3 fresnelSchlick(float cosTheta, glm::vec3 f0) {
 	return f0 + (1.f - f0) * glm::pow(1.f - cosTheta, 5.f);
 }
-CPUGPU inline float fresnelDielectric(float cosThetaI, float eta) {
+__host__ __device__ inline float fresnelDielectric(float cosThetaI, float eta) {
 	cosThetaI = glm::clamp(cosThetaI, -1.f, 1.f);
 	bool entering = cosThetaI > 0.f;
 	if (!entering) {
@@ -50,7 +50,7 @@ CPUGPU inline float fresnelDielectric(float cosThetaI, float eta) {
 	float Rperp = (cosThetaI - eta * cosThetaT) / (cosThetaI + eta * cosThetaT);
 	return (Rparl * Rparl + Rperp * Rperp) * 0.5f;
 }
-CPUGPU inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, glm::vec3& wt) {
+__host__ __device__ inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, glm::vec3& wt) {
 	float cosThetaI = glm::dot(n, wi);
 	if (cosThetaI < 0.f) {
 		eta = 1.f / eta;
@@ -66,15 +66,15 @@ CPUGPU inline bool refract(const glm::vec3& wi, const glm::vec3& n, float eta, g
 	return true;
 }
 // Geometry Function
-CPUGPU inline float Schlick_GGX(float cosTheta, float k) {
+__host__ __device__ inline float Schlick_GGX(float cosTheta, float k) {
 	k = k * 0.5;
 	return cosTheta / (cosTheta * (1.f - k) + k);
 }
-CPUGPU inline float Smith_GGX(float cosThetaI, float cosThetaO, float alphaG) {
+__host__ __device__ inline float Smith_GGX(float cosThetaI, float cosThetaO, float alphaG) {
 	return Schlick_GGX(glm::abs(cosThetaI), alphaG) * Schlick_GGX(glm::abs(cosThetaO), alphaG);
 }
 // Normal Distribution Function
-CPUGPU inline float GGX_D(float cosThetaH, float alphaG) {
+__host__ __device__ inline float GGX_D(float cosThetaH, float alphaG) {
 	if (cosThetaH < 1e-8f) {
 		return 0.f;
 	}
@@ -82,7 +82,7 @@ CPUGPU inline float GGX_D(float cosThetaH, float alphaG) {
 	float denom = (cosThetaH * cosThetaH * (alphaG2 - 1.f) + 1.f);
 	return alphaG2 / (PI * denom * denom);
 }
-CPUGPU inline float GGX_Pdf(glm::vec3 n, glm::vec3 m, glm::vec3 wo, float alpha) {
+__host__ __device__ inline float GGX_Pdf(glm::vec3 n, glm::vec3 m, glm::vec3 wo, float alpha) {
 	return GGX_D(glm::dot(n, m), alpha) * Schlick_GGX(glm::dot(n, wo), alpha) 
 		* fabs(glm::dot(wo, m) / glm::dot(n, wo));
 }
@@ -109,19 +109,19 @@ struct Material
     float indexOfRefraction;
     float emittance;
 	float metallic;
-	CPUGPU glm::vec3 DiffuseBSDF() {
+	__host__ __device__ glm::vec3 DiffuseBSDF() {
 		return color * INV_PI;
 	}
-	CPUGPU float DiffusePdf(const glm::vec3& n, const glm::vec3& wi) {
+	__host__ __device__ float DiffusePdf(const glm::vec3& n, const glm::vec3& wi) {
 		return glm::max(0.f, glm::dot(n, wi)) * INV_PI;
 	}
-	CPUGPU void DiffuseSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
+	__host__ __device__ void DiffuseSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
 		sample.wi = squareToHemiSphereCos(n, glm::vec2(r.x, r.y));
 		sample.bsdf = DiffuseBSDF();
 		sample.pdf = DiffusePdf(n, sample.wi);
 		sample.flags = BxDFFlags::DiffuseReflection;
 	}
-	CPUGPU glm::vec3 ConductorBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 wi) {
+	__host__ __device__ glm::vec3 ConductorBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 wi) {
 		float alpha = roughness * roughness;
 		glm::vec3 h = glm::normalize(wo + wi);
 		float cosThetaO = glm::dot(n, wo);
@@ -138,7 +138,7 @@ struct Material
 
 		return diffuse + specular;
 	}
-	CPUGPU float ConductorPdf(const glm::vec3 &n, const glm::vec3 &wo, const glm::vec3& wi) {
+	__host__ __device__ float ConductorPdf(const glm::vec3 &n, const glm::vec3 &wo, const glm::vec3& wi) {
 		glm::vec3 h = glm::normalize(wi + wo);
 		return glm::mix(DiffusePdf(n, wi),
 						GGX_Pdf(n, h, wo, roughness * roughness) / glm::abs((4.f * glm::dot(h, wo))),
@@ -146,7 +146,7 @@ struct Material
 
 
 	}
-	CPUGPU void ConductorSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
+	__host__ __device__ void ConductorSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
 		float alpha = roughness * roughness;
 		if (r.z > 1.f / (2.f - metallic)) {
 			sample.wi = squareToHemiSphereCos(n, glm::vec2(r.x, r.y));
@@ -164,13 +164,13 @@ struct Material
 			sample.flags = BxDFFlags::GlossyReflection;
 		}
 	}
-	CPUGPU glm::vec3 DielectricBSDF() {
+	__host__ __device__ glm::vec3 DielectricBSDF() {
 		return glm::vec3(0.f);
 	}
-	CPUGPU float DielectricPdf(const glm::vec3& n, const glm::vec3& wi) {
+	__host__ __device__ float DielectricPdf(const glm::vec3& n, const glm::vec3& wi) {
 		return 0.f;
 	}
-	CPUGPU void DielectricSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
+	__host__ __device__ void DielectricSampleBSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 r, BSDFSample& sample) {
 		float reflection_prob = fresnelDielectric(glm::dot(n, wo), indexOfRefraction);
 
 		if (r.z < reflection_prob) {
@@ -192,7 +192,7 @@ struct Material
 			sample.pdf = 1.f;
 		}
 	}
-	CPUGPU glm::vec3 BSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 wi) {
+	__host__ __device__ glm::vec3 BSDF(glm::vec3 n, glm::vec3 wo, glm::vec3 wi) {
 		switch (type)
 		{
 		case Lambertian:
@@ -207,7 +207,7 @@ struct Material
 		}
 		return glm::vec3(0.f);
 	}
-	CPUGPU float pdf(const glm::vec3& n, const glm::vec3& wo, const glm::vec3 wi) {
+	__host__ __device__ float pdf(const glm::vec3& n, const glm::vec3& wo, const glm::vec3 wi) {
 		switch (type) {
 		case MaterialType::Lambertian:
 			return DiffusePdf(n, wi);
@@ -220,7 +220,7 @@ struct Material
 		}
 		
 	}
-	CPUGPU void SampleBSDF(const glm::vec3& n, const glm::vec3& wo, const glm::vec3& r, BSDFSample& sample) {
+	__host__ __device__ void SampleBSDF(const glm::vec3& n, const glm::vec3& wo, const glm::vec3& r, BSDFSample& sample) {
 		switch (type) {
 		case MaterialType::Lambertian:
 			DiffuseSampleBSDF(n, wo, r, sample);
@@ -233,7 +233,7 @@ struct Material
 			break;
 		}
 	}
-	CPUGPU void operator =(const Material &rhs) {
+	__host__ __device__ void operator =(const Material &rhs) {
 		type = rhs.type;
 		color= rhs.color;
 		specular = rhs.specular;

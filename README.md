@@ -9,6 +9,22 @@ CUDA Path Tracer
   * 32 RAM
   * NVIDIA GeForce RTX 4070 Laptop 8GB
 
+To build with [Intel Open Image Denoiser](https://www.openimagedenoise.org/)
+
+```shell
+mkdir build && cd build
+cmake -DUSE_OIDN ..
+```
+
+or without
+
+```shell
+mkdir build && cd build
+cmake ..
+```
+
+
+
 ## Example：
 
 ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/camera.png?raw=true)
@@ -37,6 +53,16 @@ CUDA Path Tracer
   ​	![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/image_based_texture.png?raw=true)
 
 
+
+- Denoise (use OIDN)
+
+  40spp
+
+  | Before                                                       | After                                                        |
+  | ------------------------------------------------------------ | ------------------------------------------------------------ |
+  | ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/beforeDenoise.png?raw=true) | ![](https://github.com/butteruni/CUDA-Path-Tracer/blob/main/img/afterDenoise.png?raw=true) |
+
+  
 
 ## Todo Lists:	
 

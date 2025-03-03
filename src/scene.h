@@ -39,7 +39,7 @@ public:
 	void loadFromScene(const Scene& scene);
 	void clear();
 
-	GPU Material getIntersectionMaterial(ShadeableIntersection &isect) {
+	__device__ Material getIntersectionMaterial(ShadeableIntersection &isect) {
 		Material m = materials[isect.materialId];
 		if (m.colorTextureId != -1) {
 			m.color = textures[m.colorTextureId].linearSample(isect.uv.x, isect.uv.y);
@@ -58,20 +58,20 @@ public:
 		return m;
 	}
 
-	GPU float getPrimitiveArea(int id) {
+	__device__ float getPrimitiveArea(int id) {
 		glm::vec3 v0 = vertices[id * 3 + 0];
 		glm::vec3 v1 = vertices[id * 3 + 1];
 		glm::vec3 v2 = vertices[id * 3 + 2];
 
 		return triangleArea(v0, v1, v2);
 	}
-	GPU float intersectByIndex(const Ray& r, int index, glm::vec3& bray) {
+	__device__ float intersectByIndex(const Ray& r, int index, glm::vec3& bray) {
 		glm::vec3 v0 = vertices[index * 3];
 		glm::vec3 v1 = vertices[index * 3 + 1];
 		glm::vec3 v2 = vertices[index * 3 + 2];
 		return triangleIntersectionTest(v0, v1, v2, r, bray);
 	}
-	GPU void updateIntersection(const Ray& r, ShadeableIntersection& isect,const glm::vec3& bary, float min_T) {
+	__device__ void updateIntersection(const Ray& r, ShadeableIntersection& isect,const glm::vec3& bary, float min_T) {
 		if (isect.primitiveId != -1) {
 			int min_index = isect.primitiveId;
 			isect.t = min_T;
@@ -92,7 +92,7 @@ public:
 		}
 	}
 
-	GPU bool occlusionNaive(glm::vec3 x, glm::vec3 y) {
+	__device__ bool occlusionNaive(glm::vec3 x, glm::vec3 y) {
 		glm::vec3 dir = y - x;
 		float dist = glm::length(dir) - EPSILON;
 		dir = glm::normalize(dir);
@@ -107,7 +107,7 @@ public:
 		return false;
 	}
 
-	GPU bool occlusionAccel(glm::vec3 x, glm::vec3 y) {
+	__device__ bool occlusionAccel(glm::vec3 x, glm::vec3 y) {
 		glm::vec3 dir = y - x;
 		float dist = glm::length(dir) - EPSILON;
 		dir = glm::normalize(dir);
@@ -136,16 +136,16 @@ public:
 		return false;
 	}
 
-	GPU bool occlusionTest(glm::vec3 x, glm::vec3 y) {
+	__device__ bool occlusionTest(glm::vec3 x, glm::vec3 y) {
 		if (BVH_ACCELERATION)
 			return occlusionAccel(x, y);
 		else
 			return occlusionNaive(x, y);
 	}
-	GPU float envLightPdf(const glm::vec3 radiance) {
+	__device__ float envLightPdf(const glm::vec3 radiance) {
 		return luminance(radiance) * devSumLightPowerInv * devEnvTexture->xSize * devEnvTexture->ySize * 0.5f;
 	}
-	GPU float sampleEnvLight(glm::vec3 pos, glm::vec2 random, glm::vec3& radiance, glm::vec3& wi) {
+	__device__ float sampleEnvLight(glm::vec3 pos, glm::vec2 random, glm::vec3& radiance, glm::vec3& wi) {
 		int pixelId = devEnvSampler.sample(random.x, random.y);
 		int y = pixelId / devEnvTexture->xSize;
 		int x = pixelId % devEnvTexture->xSize;
@@ -157,7 +157,7 @@ public:
 		}
 		return envLightPdf(radiance) * INV_PI * INV_PI;
 	}
-	GPU float sampleDirectLight(glm::vec3 pos, glm::vec4 random, glm::vec3 &radiance, glm::vec3 &wi) {
+	__device__ float sampleDirectLight(glm::vec3 pos, glm::vec4 random, glm::vec3 &radiance, glm::vec3 &wi) {
 		
 		int lightId = devlightSampler.sample(random.x, random.y);
 		if (lightId == devlightSampler.size - 1 && devEnvSampler.size != 0) {
@@ -183,7 +183,7 @@ public:
 		return luminance(radiance) * devSumLightPowerInv * computeSolidAngle(pos, samplePoint, lightNormal);
 	}
 
-	GPU void intersectNaive(const Ray& r, ShadeableIntersection& isect) {
+	__device__ void intersectNaive(const Ray& r, ShadeableIntersection& isect) {
 		float min_T = FLT_MAX;
 		int min_index = -1;
 		glm::vec3 bary;
@@ -199,7 +199,7 @@ public:
 		isect.primitiveId = min_index;
 		updateIntersection(r, isect, bary, min_T);
 	}
-	GPU int getLinearId(const glm::vec3 &dir) {
+	__device__ int getLinearId(const glm::vec3 &dir) {
 		int dim = 0;
 		glm::vec3 absDir = glm::abs(dir);
 		if (absDir.x > absDir.y) {
@@ -220,7 +220,7 @@ public:
 		}
 		return dim * devNumNodes;
 	}
-	GPU void intersectAccel(const Ray& r, ShadeableIntersection& isect) {
+	__device__ void intersectAccel(const Ray& r, ShadeableIntersection& isect) {
 		float min_T = FLT_MAX;
 		int min_index = -1;
 		glm::vec3 bary;
@@ -249,7 +249,7 @@ public:
 		isect.primitiveId = min_index;
 		updateIntersection(r, isect, bary, min_T);
 	}
-	GPU void intersectTest(const Ray& r, ShadeableIntersection& isect) {
+	__device__ void intersectTest(const Ray& r, ShadeableIntersection& isect) {
 		if (BVH_ACCELERATION) 
 			intersectAccel(r, isect);
 		else

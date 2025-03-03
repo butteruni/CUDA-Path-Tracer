@@ -52,7 +52,7 @@ static glm::vec3* dev_image = NULL;
 static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
-GPU static float RR = 0.8;
+__device__ static float RR = 0.8;
 thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
 thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections;
@@ -118,7 +118,7 @@ void pathtraceFree()
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-GPU Ray physical_light(const Camera& cam, int x, int y, thrust::default_random_engine &rng) {
+__device__ Ray physical_light(const Camera& cam, int x, int y, thrust::default_random_engine &rng) {
     Ray ray;
     glm::vec4 r = sample4D(rng);
     float aspect = float(cam.resolution.x) / cam.resolution.y;
@@ -135,7 +135,7 @@ GPU Ray physical_light(const Camera& cam, int x, int y, thrust::default_random_e
     ray.origin = cam.position + cam.right * pLens.x + cam.up * pLens.y;
     return ray;
 }
-GPU  glm::vec3 random_light_dir(const Camera& cam, int x, int y, thrust::default_random_engine & rng) {
+__device__  glm::vec3 random_light_dir(const Camera& cam, int x, int y, thrust::default_random_engine & rng) {
     thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
     float jitterX = u01(rng);
     float jitterY = u01(rng);
@@ -382,12 +382,12 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 struct IsPathRunning {
-    CPUGPU bool operator()(const PathSegment& path) const {
+    __host__ __device__ bool operator()(const PathSegment& path) const {
         return path.remainingBounces != 0;
     }
 };
 struct sortByMaterial {
-    CPUGPU bool operator()(
+    __host__ __device__ bool operator()(
         const ShadeableIntersection& a, 
         const ShadeableIntersection& b) {
         return a.materialId < b.materialId;
@@ -543,7 +543,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     // Send results to OpenGL buffer for rendering
     sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
 
-    // Retrieve image from GPU
+    // Retrieve image from __device__
     cudaMemcpy(hst_scene->state.image.data(), dev_image,
         pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 

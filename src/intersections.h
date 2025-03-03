@@ -60,7 +60,7 @@ __host__ __device__ float sphereIntersectionTest(
     glm::vec3& normal,
     bool& outside);
 
-CPUGPU float triangleIntersectionTest(
+__host__ __device__ float triangleIntersectionTest(
     const glm::vec3& v0,
     const glm::vec3& v1,
     const glm::vec3& v2,
